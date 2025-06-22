@@ -1,0 +1,32 @@
+FILENAME: $H 250617-grants-PAR-25-383
+
+HEADLINE: HHS to Fund MedTech Translator for Neurological Disorders
+
+STORY-TEXT: WASHINGTON, June 20 -- The U.S. Department of Health and Human Services National Institutes of Health has announced a cooperative agreement opportunity titled "Blueprint MedTech Translator." 
+
+This program encourages investigators to undertake translational activities and clinical feasibility studies to advance therapeutic and diagnostic devices for disorders impacting the nervous or neuromuscular systems.
+
+Supported activities include implementing clinical prototype devices, conducting non-clinical safety and efficacy testing, performing design verification and validation, and securing Investigational Device Exemption (IDE) or Institutional Review Board (IRB) approval for clinical feasibility studies. These studies are anticipated to yield insights into device function or final design that are not practically obtainable through other non-clinical assessments, particularly for novel devices or their intended uses. This is a milestone-driven cooperative agreement program, involving NIH program staff in project plan negotiation and progress monitoring.
+
+While specific funding amounts are not provided, there is no cost sharing or matching requirement. Grantees will receive funding for in-house laboratory activities and will collaborate with NIH-funded consultants for regulatory, reimbursement, intellectual property, commercialization, and strategic partnership assistance. Projects can also be enhanced through NIH contract research organizations specializing in areas like large animal testing, sterilization, biocompatibility assessment, manufacturing, and medical monitoring.
+
+A wide array of entities are eligible to apply, including: city or township governments, private institutions of higher education, Federally recognized Native American tribal governments, small businesses, public housing authorities/Indian housing authorities, State governments, public and State controlled institutions of higher education, Native American tribal organizations (other than Federally recognized tribal governments), for-profit organizations (other than small businesses), special district governments, nonprofits having a 501(c)(3) status with the IRS (other than institutions of higher education), independent school districts, nonprofits that do not have a 501(c)(3) status with the IRS (other than institutions of higher education), county governments. Other eligible applicants include Alaska Native and Native Hawaiian Serving Institutions, Asian American Native American Pacific Islander Serving Institutions, Eligible Agencies of the Federal Government, Faith-based or Community-based Organizations, Hispanic-serving Institutions, Historically Black Colleges and Universities, Indian/Native American Tribal Governments (Other than Federally Recognized), non-domestic (non-U.S.) entities (Foreign Organizations), Regional Organizations, Tribally Controlled Colleges and Universities, and U.S. Territories or Possessions.
+
+The deadline for applications is January 28, 2028. The funding opportunity number is PAR-25-383.
+
+* * *
+
+View grant announcement here: https://www.grants.gov/search-results-detail/358823
+
+
+PROMPT:
+Create up to a 400 word news story with a headline from this text of a federal grant opportunity announcement. Include the funding amounts available, deadline, eligible recipients in detail.....
+Refer to million of dollars with a single decimal if necessary (Example: $38.4 million, or $17 million).....
+In text, do not include these words: significant, forthcoming, extensive.....
+Use the name of the parent and child agency from the 1st 2 lines in the text below.....
+If the 1st word of the agency name is Department, insert U.S. in front of it.....
+Make the last paragraph the deadline for submissions and the grant ID number.....
+Do not use a dateline.....
+Do not use the word new in front of the word grant.....
+In heds use this acronym xxxx instead of full name of agency.....
+Use this above information as the prompt.

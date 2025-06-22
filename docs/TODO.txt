@@ -1,0 +1,12 @@
+1. add keys
+4. get clean output summary
+5. Figure out file name
+6. get api-less stuff working
+7. get email summary up and running
+8. Modify insert story and other DB functions to work with Grants system
+9. Add a method that deletes the xml file after use
+
+Current hours worked: 4
+
+
+
