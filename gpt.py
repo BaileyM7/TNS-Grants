@@ -103,7 +103,7 @@ def callApiWithGrant(client, grant):
         story = f"WASHINGTON, {today_date} -- {body_raw.strip()}"
         close_date = format_grant_date(close_date)
         story += f"\n\nThe deadline for application is {close_date}. The funding opportunity number is {OpportunityNumber}"
-        story += f"\n\n* * *\n\nView grant announcement here: https://www.grants.gov/search-results-detail/{opportunity_id}"
+        story += f"\n\n* * *\n\nView grant announcement here: https://www.grants.gov/search-results-detail/{opportunity_id}."
 
         # getting rid of stray input from gpt and turning all text into ASCII charectors for DB
         headline = clean_text(headline_raw)
