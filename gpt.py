@@ -1,8 +1,9 @@
-from cleanup_text import cleanup_text, clean_text
+import re
+import logging
+import platform
 from openai import OpenAI
 from datetime import datetime
-import platform
-import re
+from cleanup_text import cleanup_text, clean_text
 
 # gets the api keys
 def getKey():
@@ -11,13 +12,13 @@ def getKey():
         with open("utils/key.txt", "r") as file:
             return file.readline().strip()
     except FileNotFoundError:
-        print("File not found!")
+        logging.info("File not found!")
     except PermissionError:
-        print("You don't have permission to access this file.")
+        logging.info("You don't have permission to access this file.")
     except IOError as e:
-        print(f"An I/O error occurred: {e}")
+        logging.info(f"An I/O error occurred: {e}")
 
-# makes the date that goes after WASHIGNTON
+# makes the date that goes after "WASHINGTON --"
 def get_body_date():
     today = datetime.today()
     month = today.strftime('%B') 
@@ -26,61 +27,126 @@ def get_body_date():
     day_format = '%-d' if platform.system() != 'Windows' else '%#d'
     return f"{formatted_month} {today.strftime(day_format)}"
 
+# turns grant date into a TNS approved format
 def format_grant_date(date_str):
-    """Convert a date like '07222025' to '7 / 22 / 25'."""
+    """Convert a date like '07222025' to '7/22/25'."""
     try:
         date = datetime.strptime(date_str, "%m%d%Y")
         return f"{date.month}/{date.day}/{str(date.year)[-2:]}"
     except Exception:
         return date_str  # fallback if the format is unexpected
 
-def callApiWithGrant(client, grant):
-    #TODO ADD ALL GRANT INFO FOR EACH
+# gets the parent govenrment agency to put into report
+def get_parent_agency_abbreviation(agency_code):
+    """
+    Extracts the parent agency abbreviation from an AgencyCode.
+    Example: 'DOI-BLM' -> 'DOI'
+    """
+    if not agency_code:
+        return None
+    return agency_code.split('-')[0]
 
+# calls GPT to summarize grant info
+def callApiWithGrant(client, grant):
+    # converts dollar amount into TNS specified format
     def millions(amount):
         try:
             amt = float(amount)
             if amt >= 1_000_000:
                 millions_value = amt / 1_000_000
-                if millions_value.is_integer():
-                    return f"${int(millions_value)} million"
-                else:
-                    return f"${millions_value:.1f} million"
-            else:
+                return f"${int(millions_value)} million" if millions_value.is_integer() else f"${millions_value:.1f} million"
+            elif amt >= 0:
                 return f"${int(amt):,}"
         except:
-            return "an unspecified amount"
+            pass
+        return None  # Return None if formatting fails
 
+    # Get attributes from grant
+    agency = grant.get("AgencyName")
+    opportunity_id = grant.get("OpportunityID")
+    opportunity_title = grant.get("OpportunityTitle")
+    OpportunityNumber = grant.get("OpportunityNumber")
+    AgencyCode = grant.get("AgencyCode")
 
-    award_floor = millions(grant.get("AwardFloor", 0))
-    award_ceiling = millions(grant.get("AwardCeiling", 0))
-    total_funding = millions(grant.get("EstimatedTotalProgramFunding", 0))
-    agency = grant.get("AgencyName", "N/A")
-    opportunity_id = grant.get("OpportunityID", "N/A")
-    opportunity_title = grant.get("OpportunityTitle", "N/A")
-    close_date = grant.get("CloseDate", "N/A")
-    expected_awards = grant.get("ExpectedNumberOfAwards", "an unspecified number")
-    eligibility = grant.get("AdditionalInformationOnEligibility", "Eligibility details not specified.")
-    description = grant.get("Description", "No description provided.")
-    OpportunityNumber = grant.get("OpportunityNumber", "N/A")
+    # Required fields — return None if missing
+    if not all([agency, opportunity_id, opportunity_title, OpportunityNumber, AgencyCode]):
+        return None, None
 
-    prompt =  f"""
-    Create a news story of up to 300 words with a headline based on the following federal grant opportunity. Use the acronym of {agency} in the headline.
+    # Optional fields
+    award_floor_val = grant.get("AwardFloor")
+    award_ceiling_val = grant.get("AwardCeiling")
+    total_funding_val = grant.get("EstimatedTotalProgramFunding")
+    expected_awards = grant.get("ExpectedNumberOfAwards", 1)
+    eligibility = grant.get("AdditionalInformationOnEligibility")
+    description = grant.get("Description")
+    close_date = grant.get("CloseDate", "No close date provided.")
 
-    Title: {opportunity_title}
+    # Format amounts
+    award_floor = millions(award_floor_val)
+    award_ceiling = millions(award_ceiling_val)
+    total_funding = millions(total_funding_val)
 
-    Issued by: {agency}
+    # Estimate total funding if missing but ceiling is available
+    if total_funding is None and award_ceiling_val is not None:
+        try:
+            total_funding_est = expected_awards * float(award_ceiling_val)
+            total_funding = millions(total_funding_est)
+        except:
+            total_funding = None
 
-    The grant offers funding ranging from {award_floor} to {award_ceiling}, with an estimated total program funding of {total_funding}. The agency expects to make {expected_awards} award(s).
+    # Get acronym from agency code
+    acronym = get_parent_agency_abbreviation(AgencyCode)
 
-    Eligible applicants: {eligibility}
+    # Build the details block conditionally (I found this gave more consistant GPT outputs)
+    details = f"- Title: {opportunity_title}\n"
+    if award_floor and award_ceiling:
+        details += f"- Award range: {award_floor} to {award_ceiling}\n"
+    elif award_ceiling:
+        details += f"- Award ceiling: {award_ceiling}\n"
+    elif award_floor:
+        details += f"- Award floor: {award_floor}\n"
 
-    Description: {description}
+    if total_funding:
+        details += f"- Estimated total funding: {total_funding}\n"
+    if expected_awards:
+        details += f"- Expected number of awards: {expected_awards}\n"
+    if eligibility:
+        details += f"- Eligible applicants: {eligibility}\n"
+    if description:
+        details += f"- Description: {description}\n"
 
-    Do not use the words “significant,” “forthcoming,” or “extensive.” Do not include a dateline or use the word “new” in front of “grant.” If the agency begins with “Department,” insert “U.S.” in front of it. Refer to millions using a single decimal point (e.g., $3.5 million). Use the acronym of {agency} in the headline instead of the full name of the agency.
+    readable_close = datetime.strptime(close_date, "%m%d%Y").strftime("%B %d, %Y")
+    details += f"- Application deadline: {readable_close}\n"
 
-    """
+    # Construct final prompt
+    prompt = f"""
+Write a news story of up to 300 words with a headline based on the following federal grant opportunity. 
+Use the acronym of the parent agency "{acronym}" in the headline (not the full name), you can also mention the child agency "{agency}".
 
+The headline should:
+- Avoid any introductory phrases like “Funding Alert,” “Grant Notice,” or “Breaking:”
+- Be clear, descriptive, and written in a professional journalistic tone
+- Focus on the agency and the purpose or target of the grant
+
+In the first paragraph, naturally introduce the grant by identifying:
+- the fully spelled-out parent agency (based on the acronym {acronym})
+- the exact child agency name: {agency}
+
+For example: "The U.S. Department of State, through its Bureau of Educational and Cultural Affairs, has announced..."
+
+Do not use a rigid structure like "X agency issued the following grant." Instead, write in the style of a professional news brief.
+
+Use the following details in the article:
+{details}
+Guidelines:
+- Spell out the parent agency from its acronym. If it begins with "Department", prepend "U.S." (e.g., "U.S. Department of Energy").
+- Use the **exact agency name** "{agency}" when referring to the child agency. Do **not** substitute it with a different bureau or inferred entity.
+- Refer to dollar amounts in millions with a single decimal point if applicable (e.g., "$2.5 million").
+- Do not use the words “significant,” “forthcoming,” “extensive,” or “new”.
+- Do not include a dateline.
+- Do not mention hours or time zones in deadlines—use only full dates like "July 21, 2025".
+""".strip()
+    
     try:
         # Generate main press release
         response = client.chat.completions.create(
@@ -93,16 +159,17 @@ def callApiWithGrant(client, grant):
 
         if len(parts) != 2:
             # TODO: ADD LOG MESSAGE HERE
-            print(f"Headline Wasnt Parsed Right")
-            return None, None, None 
+            logging.info(f"Headline Wasnt Parsed Right")
+            return None, None 
 
+        # getting both the headline and body
         headline_raw = parts[0]
         body_raw = parts[1]
 
         today_date = get_body_date()
         story = f"WASHINGTON, {today_date} -- {body_raw.strip()}"
         close_date = format_grant_date(close_date)
-        story += f"\n\nThe deadline for application is {close_date}. The funding opportunity number is {OpportunityNumber}"
+        story += f"\n\nThe deadline for application is {close_date}. The funding opportunity number is {OpportunityNumber}."
         story += f"\n\n* * *\n\nView grant announcement here: https://www.grants.gov/search-results-detail/{opportunity_id}."
 
         # getting rid of stray input from gpt and turning all text into ASCII charectors for DB
@@ -115,5 +182,5 @@ def callApiWithGrant(client, grant):
         return headline, story
 
     except Exception as e:
-        print(f"OpenAI API error: {e}")
-        return "NA", None, None 
+        logging.info(f"OpenAI API error: {e}")
+        return None, None 

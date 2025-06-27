@@ -1,21 +1,23 @@
-import smtplib
-import ssl
-import logging
 import os
+import ssl
+import smtplib
+import logging
 from email.mime.text import MIMEText
+from validate_email import validate_email
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from validate_email import validate_email
 
-def send_summary_email(msg_txt, is_senate, to_addrs=None, from_addr="kmeek@targetednews.com", subject="Bill Intro Load Summary: "):
+# sends the summary email to the given recipients
+def send_summary_email(msg_txt, to_addrs=None, from_addr="kmeek@targetednews.com", subject="Grants Summary"):
+    # sever configs
     smtp_server = "mail2.targetednews.com"
     port = 587
     sender_email = "kmeek@targetednews.com"
     password = "jsfL6Hqa"
-    subject += 'Senate' if is_senate else 'House'
 
+    # array of addresses to send summary email to
     if to_addrs is None:
-        to_addrs = ["kmeek@targetednews.com", "bmalota08@gmail.com", "marlynvitin@yahoo.com", "struckvail@aol.com"]
+        to_addrs = ["kmeek@targetednews.com", "bmalota08@gmail.com", "marlynvitin@yahoo.com", "struckvail@aol.com", "malota.rc1@verizon.net"]
     elif isinstance(to_addrs, str):
         to_addrs = [to_addrs]
 
@@ -26,6 +28,8 @@ def send_summary_email(msg_txt, is_senate, to_addrs=None, from_addr="kmeek@targe
             return
 
     context = ssl.create_default_context()
+
+    # sending the email to recipients
     try:
         server = smtplib.SMTP(smtp_server, port)
         server.starttls(context=context)
@@ -38,7 +42,10 @@ def send_summary_email(msg_txt, is_senate, to_addrs=None, from_addr="kmeek@targe
         msg.attach(MIMEText(msg_txt, "plain"))
 
         server.sendmail(from_addr, to_addrs, msg.as_string())
+
     except Exception as e:
         logging.error(f"Failed to send summary email: {e}")
+
+        # closing server after attemptign to send email
     finally:
         server.quit()

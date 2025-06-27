@@ -1,7 +1,3 @@
-"""
-This file holds all sql DB related functions
-Last updated: jun 20
-"""
 import yaml
 import logging
 import mysql.connector

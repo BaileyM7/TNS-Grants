@@ -1,3 +1,4 @@
+import os
 import io
 import zipfile
 import requests
@@ -19,7 +20,6 @@ def get_yesterday_zip_url():
     for a in soup.find_all("a"):
         if a.text.strip() == yesterday:
             return a['href']
-
     
     raise Exception(f"No file found for {yesterday}")
 
@@ -47,13 +47,19 @@ def parse_yesterdays_grants(file):
     yesterday = get_yesterdays_date()
     grants = []
 
+    # looks through every grant in the file
     for opp in root.findall("ns:OpportunitySynopsisDetail_1_0", ns):
         post_date = opp.find("ns:PostDate", ns)
+
+        # if the grant was posted yesterday, then it grabs its data
         if post_date is not None and post_date.text == yesterday:
+
+            # creates a dict holding all needed info for a grant
             grant_data = {
                 "OpportunityID": opp.findtext("ns:OpportunityID", default="", namespaces=ns),
                 "OpportunityNumber": opp.findtext("ns:OpportunityNumber", default="", namespaces=ns),
                 "OpportunityTitle": opp.findtext("ns:OpportunityTitle", default="", namespaces=ns),
+                "AgencyCode": opp.findtext("ns:AgencyCode", default="", namespaces=ns),
                 "AgencyName": opp.findtext("ns:AgencyName", default="", namespaces=ns),
                 "Description": opp.findtext("ns:Description", default="", namespaces=ns),
                 "AwardCeiling": opp.findtext("ns:AwardCeiling", default="", namespaces=ns),
@@ -64,11 +70,20 @@ def parse_yesterdays_grants(file):
                 "CloseDate": opp.findtext("ns:CloseDate", default="", namespaces=ns),
             }
             grants.append(grant_data)
-    
+    # print(grants)
+    # returns a list of dictionaries containing info from all the grants
     return grants
-
 
 # gets the filename for an individual grant
 def generate_filename(grant: dict):
     date = datetime.now().strftime("%y%m%d")
     return f"$H {date}-grants-{grant["OpportunityNumber"]}"
+
+# deletes the file
+def delete_file(file_path):
+    # Deletes the given file from the filesystem.
+    try:
+        os.remove(file_path)
+        print(f"Deleted file: {file_path}")
+    except OSError as e:
+        print(f"Error deleting file {file_path}: {e}")
