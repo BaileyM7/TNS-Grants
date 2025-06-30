@@ -14,14 +14,14 @@ def send_summary_email(msg_txt, logfile_path, to_addrs=None, from_addr="kmeek@ta
     password = "jsfL6Hqa"
 
     if to_addrs is None:
-        to_addrs = ["bmalota08@gmail.com"]
-        # to_addrs = [
-        #     "kmeek@targetednews.com",
-        #     "bmalota08@gmail.com",
-        #     "marlynvitin@yahoo.com",
-        #     "struckvail@aol.com",
-        #     "malota.rc1@verizon.net"
-        # ]
+        # to_addrs = ["bmalota08@gmail.com"]
+        to_addrs = [
+            "kmeek@targetednews.com",
+            "bmalota08@gmail.com",
+            "marlynvitin@yahoo.com",
+            "struckvail@aol.com",
+            "malota.rc1@verizon.net"
+        ]
     elif isinstance(to_addrs, str):
         to_addrs = [to_addrs]
 
