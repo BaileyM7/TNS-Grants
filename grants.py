@@ -87,3 +87,56 @@ def delete_file(file_path):
         print(f"Deleted file: {file_path}")
     except OSError as e:
         print(f"Error deleting file {file_path}: {e}")
+
+# returns the proper tagging for applicants tags for story insert
+def get_applicants_tags():
+    pass
+
+# gets the funding catergory tagging for the story insert
+def get_funding_category_tags(grant):
+    # list of found tags
+    tags = []
+
+    # categories with their corresponding story id tags
+    """
+    Current Unknowns: (what should I do with these????)
+        "AR": "Arts",
+        "RA": "Recovery Act",
+    """
+    table = {
+        "ACA": 121,
+        "AG": 120,
+        "BC": 2,
+        "CD": 122,
+        "CP": 123,
+        "DPR": 7,
+        "ED": 9,
+        "ELT": 124,
+        "EN": 11,
+        "ENV": 12,
+        "FN": 125,
+        "HL": 15,
+        "HO": 64,
+        "HU": 127,
+        "ISS": 25,
+        "IS": 128,
+        "LJL": 17,
+        "NR": 129,
+        "RD": 130,
+        "ST": 24,
+        "T": 65,
+        "O": 56
+    } 
+
+
+    # adding every tag
+    for category in grant:
+        # if found as a category, add it
+        if category in table:
+            tags.append(table[category])
+        # if its not found, add as other
+        else: 
+            tags.append(table["O"])
+
+    # returns an array of tags for each grant to be inserted
+    return tags
