@@ -99,21 +99,26 @@ def callApiWithGrant(client, grant):
 
     # Build the details block conditionally (I found this gave more consistant GPT outputs)
     details = f"- Title: {opportunity_title}\n"
-    if award_floor and award_ceiling:
+
+    try:
+        floor_val = float(award_floor_val)
+    except:
+        floor_val = None
+
+    if floor_val and award_ceiling:
         details += f"- Award range: {award_floor} to {award_ceiling}\n"
+    elif floor_val and floor_val > 0:
+        details += f"- Award floor: {award_floor}\n"
     elif award_ceiling:
         details += f"- Award ceiling: {award_ceiling}\n"
-    elif award_floor:
-        details += f"- Award floor: {award_floor}\n"
-
-    if total_funding:
-        details += f"- Estimated total funding: {total_funding}\n"
-    if expected_awards:
-        details += f"- Expected number of awards: {expected_awards}\n"
-    if eligibility:
-        details += f"- Eligible applicants: {eligibility}\n"
-    if description:
-        details += f"- Description: {description}\n"
+        if total_funding:
+            details += f"- Estimated total funding: {total_funding}\n"
+        if expected_awards:
+            details += f"- Expected number of awards: {expected_awards}\n"
+        if eligibility:
+            details += f"- Eligible applicants: {eligibility}\n"
+        if description:
+            details += f"- Description: {description}\n"
 
     readable_close = datetime.strptime(close_date, "%m%d%Y").strftime("%B %d, %Y")
     details += f"- Application deadline: {readable_close}\n"

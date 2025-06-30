@@ -38,8 +38,20 @@ def download_and_extract_zip(zip_url):
 # getting yesterdays date for getting yesterdays posted grants
 def get_yesterdays_date():
     """Returns yesterday's date as MMDDYYYY string"""
-    return (datetime.now() - timedelta(days=1)).strftime("%m%d%Y")
+    return (datetime.now() - timedelta(days=3)).strftime("%m%d%Y")
 
+# returns the full child agency name (used it name gets truncated due to being to long)
+def get_full_child_agency_name(agency_code):
+
+    # dictionary of known issue agencies that are too long
+    agency_name_patches = {
+    "HHS-SAMHS-SAMHSA": "Substance Abuse and Mental Health Services Administration"
+    }
+
+    if agency_code in agency_name_patches:
+        return agency_name_patches[agency_code]
+    else:
+        return None
 
 # returns a list of dicts that contains all needed info for each grant
 def parse_yesterdays_grants(file):
@@ -75,8 +87,12 @@ def parse_yesterdays_grants(file):
                     "CategoryOfFundingActivity": [c.text for c in opp.findall("ns:CategoryOfFundingActivity", ns)],
                     "FundingInstrumentType": opp.findtext("ns:FundingInstrumentType", default="", namespaces=ns),
                 }
-                grants.append(grant_data)
+                
+                if len(grant_data["AgencyName"]) == 50 and get_full_child_agency_name(grant_data["AgencyCode"]):
+                    grant_data["AgencyName"] = get_full_child_agency_name(grant_data["AgencyCode"])
 
+                grants.append(grant_data)
+            
     except Exception as e:
         logging.info("Hit error when parsing grants {e}")
 
