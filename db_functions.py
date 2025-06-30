@@ -13,7 +13,7 @@ def get_db_connection(yml_path="configs/db_config.yml"):
         database=config["database"]
     )
 
-def insert_story(filename, headline, body, a_id, sponsor_blob):
+def insert_story(filename, headline, body, applicants_tags, category_tags, funding_tag, a_id = 51):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -30,8 +30,8 @@ def insert_story(filename, headline, body, a_id, sponsor_blob):
         INSERT INTO story
         (filename, uname, source, by_line, headline, story_txt, editor, invoice_tag,
          date_sent, sent_to, wire_to, nexis_sent, factiva_sent,
-         status, content_date, last_action, orig_txt)
-        VALUES (%s, %s, %s, %s, %s, %s, '', '', NOW(), '', '', NULL, NULL, %s, %s, SYSDATE(), %s)
+         status, content_date, last_action)
+        VALUES (%s, %s, %s, %s, %s, %s, '', '', NOW(), '', '', NULL, NULL, %s, %s, SYSDATE())
         """
         today_str = datetime.now().strftime('%Y-%m-%d')
         cursor.execute(insert_sql, (
@@ -43,24 +43,36 @@ def insert_story(filename, headline, body, a_id, sponsor_blob):
             body,
             'D',
             today_str,
-            sponsor_blob
         ))
 
         # Get story ID s_id
         s_id = cursor.lastrowid
 
-        # Insert state tags into story_tag
+        # Insert tags for applicants_tags
         tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
-        for state_abbr, tag_id in openai_api.found_ids.items():
-            cursor.execute(tag_insert_sql, (s_id, tag_id))
-            logging.debug(f"Inserted tag for state {state_abbr} (tag_id={tag_id})")
+        for tag in applicants_tags:
+            cursor.execute(tag_insert_sql, (s_id, tag))
+            logging.debug(f"Inserted tag for Grant applicants_tag (tag_id={tag})")
+
+        # Insert tags for category_tags
+        tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
+        for tag in category_tags:
+            cursor.execute(tag_insert_sql, (s_id, tag))
+            logging.debug(f"Inserted tag for Grant tag_insert_sql (tag_id={tag})")
+
+        # Insert tag for funding_tag
+        tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
+        cursor.execute(tag_insert_sql, (s_id, funding_tag))
+        logging.debug(f"Inserted tag for Grant funding_tag (tag_id={funding_tag})")
 
         conn.commit()
-        logging.info(f"Inserted story and {len(openai_api.found_ids)} tag(s): {filename}")
+        logging.info(f"Inserted Grant with filename: {filename}")
         return s_id
+
     except Exception as err:
         logging.error(f"DB insert failed: {err}")
         return None
+
     finally:
         if conn:
             conn.close()
