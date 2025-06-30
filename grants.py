@@ -104,32 +104,23 @@ def get_applicants_tags(grant):
 
     # all the categories from the xml file transformed into TNS table equivilants
     applicant_types = {
-        "99": 54,   # Unrestricted -> All other types of entities
-        "00": 55,   # Other -> Restricted (safest default)
-        "01": 35,   # State governments -> 01. State Governments
-        "02": 32,   # County governments -> 02. County, city, township governments
-        "03": 32,   # City or township governments -> 02. County, city, township governments
-        "04": 33,   # Special district governments -> 03. Special district governments - ONLY
-        "05": 34,   # Native American tribal governments -> 04. Native American tribal governments and/or organizations
-        "06": 36,   # Public and State controlled institutions of higher education -> 05. Institutions of higher education
-        "07": 40,   # Historically Black Colleges and Universities -> 09. Historically Black Colleges and Universities
-        "08": 41,   # Tribally Controlled Colleges and Universities -> 10. Tribally-Controlled Colleges and Universities
-        "09": 42,   # Nonprofits (any) -> 11. Non-profits
-        "10": 43,   # Nonprofits having a 501(c)(3) status -> 12. Non-profits with 501c3 status from the IRS ONLY
-        "11": 44,   # For-profit organizations other than small businesses -> 13. For-profits
-        "12": 45,   # Small businesses -> 14. Small businesses
-        "13": 46,   # Public housing authorities/Indian housing authorities -> 15. Public housing authorities/Indian housing authorities
-        "14": 49,   # Eligible agencies of the Federal Government -> 18. Eligible agencies of the federal government
-        "15": 51,   # U.S. territories (e.g., Puerto Rico) -> 20. U.S. territories and possessions
-        "16": 52,   # Non-domestic (non-U.S.) entities -> 22. Non-domestic entities
-        "17": 50,   # Faith-based and community-based organizations -> 19. Faith-based or community organizations
-        "18": 47,   # Regional Organizations (best fit) -> 16. Public agencies
-        "19": 38,   # Local Education Agencies (LEAs) -> 07. Local education agencies (LEAs)
-        "20": 39,   # State Education Agencies (SEAs) -> 08. State education agencies (SEAs)
-        "21": 37,   # Independent School Districts -> 06. Independent school districts
-        "22": 36,   # Private institutions of higher education -> 05. Institutions of higher education
-        "23": 53,   # Non-Governmental Organizations (NGOs) -> 21. NGOs
-        "25": 56,   # Other -> Other
+        "99": 54,
+        "00": 35,   
+        "01": 32,  
+        "02": 32,  
+        "04": 33,   
+        "05": 37,   
+        "06": 36,   
+        "07": 34,   
+        "08": 46,   
+        "11": 34,   
+        "12": 43,   
+        "13": 42,   
+        "20": 36,  
+        "21": 56,   
+        "22": 44,
+        "23": 45,   
+        "25": 56,   
     }
 
     # adding every tag found to to the tags array
