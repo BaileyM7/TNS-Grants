@@ -38,7 +38,7 @@ def download_and_extract_zip(zip_url):
 # getting yesterdays date for getting yesterdays posted grants
 def get_yesterdays_date():
     """Returns yesterday's date as MMDDYYYY string"""
-    return (datetime.now() - timedelta(days=3)).strftime("%m%d%Y")
+    return (datetime.now() - timedelta(days=1)).strftime("%m%d%Y")
 
 
 # returns a list of dicts that contains all needed info for each grant
