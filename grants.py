@@ -38,7 +38,7 @@ def download_and_extract_zip(zip_url):
 # getting yesterdays date for getting yesterdays posted grants
 def get_yesterdays_date():
     """Returns yesterday's date as MMDDYYYY string"""
-    return (datetime.now() - timedelta(days=3)).strftime("%m%d%Y")
+    return (datetime.now() - timedelta(days=1)).strftime("%m%d%Y")
 
 # returns the full child agency name (used it name gets truncated due to being to long)
 def get_full_child_agency_name(agency_code):
@@ -94,7 +94,7 @@ def parse_yesterdays_grants(file):
                 grants.append(grant_data)
             
     except Exception as e:
-        logging.info("Hit error when parsing grants {e}")
+        logging.info(f"Hit error when parsing grants {e}")
 
     # print(grants)
     # returns a list of dictionaries containing info from all the grants
@@ -103,7 +103,7 @@ def parse_yesterdays_grants(file):
 # gets the filename for an individual grant
 def generate_filename(grant: dict):
     date = datetime.now().strftime("%y%m%d")
-    return f"$H {date}-grants-{grant["OpportunityNumber"]}"
+    return f"$H {date}-grants-{grant['OpportunityNumber']}"
 
 # deletes the file
 def delete_file(file_path):
