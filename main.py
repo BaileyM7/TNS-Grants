@@ -1,3 +1,4 @@
+import os
 import sys
 import csv
 import getopt
@@ -17,12 +18,16 @@ Last Updated: Jun 30 2025
 client = OpenAI(api_key=getKey())
 
 # setting up the Logging functionality
-logfile = f"scrape_log.{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+logfile_name = f"scrape_log.{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+logfile_path = os.path.join(LOG_DIR, logfile_name)
+
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
     datefmt="%m-%d %H:%M:%S",
-    filename=logfile,
+    filename=logfile_path,
     filemode="w"
 )
 
@@ -120,7 +125,7 @@ def main(argv):
     
     logging.info(summary)
     logging.shutdown()
-    send_summary_email(summary, logfile)
+    send_summary_email(summary, logfile_path)
 
     # runs main the the args
 if __name__ == "__main__":
