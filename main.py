@@ -112,7 +112,7 @@ def main(argv):
     elapsed = str(end_time - start_time).split('.')[0]
 
     summary = f"""
-    Load Version 1.0.1 07/01/2025
+    Load Version 1.0.2 07/02/2025
 
     Passed Parameters: {' -t' if test_run else ''} {' -p' if production_run else ''}
 

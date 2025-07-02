@@ -48,22 +48,14 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
         # Get story ID s_id
         s_id = cursor.lastrowid
 
-        # Insert tags for applicants_tags
-        tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
-        for tag in applicants_tags:
-            cursor.execute(tag_insert_sql, (s_id, tag))
-            logging.debug(f"Inserted tag for Grant applicants_tag (tag_id={tag})")
+        # Insert tags for applicants_tags, category_tags, and funding_tag
+        all_tags = set(applicants_tags + category_tags + [funding_tag])
 
-        # Insert tags for category_tags
-        tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
-        for tag in category_tags:
-            cursor.execute(tag_insert_sql, (s_id, tag))
-            logging.debug(f"Inserted tag for Grant tag_insert_sql (tag_id={tag})")
-
-        # Insert tag for funding_tag
-        tag_insert_sql = "INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)"
-        cursor.execute(tag_insert_sql, (s_id, funding_tag))
-        logging.debug(f"Inserted tag for Grant funding_tag (tag_id={funding_tag})")
+        try:
+            for tag in all_tags:
+                cursor.execute("INSERT INTO story_tag (id, tag_id) VALUES (%s, %s)", (s_id, tag))
+        except mysql.connector.Error as e:
+            logging.warning(f"Some tags failed to insert for s_id={s_id}: {e}")
 
         conn.commit()
         logging.info(f"Inserted Grant with filename: {filename}")
