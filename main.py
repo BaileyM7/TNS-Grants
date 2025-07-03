@@ -18,16 +18,14 @@ Last Updated: Jun 30 2025
 client = OpenAI(api_key=getKey())
 
 # setting up the Logging functionality
-LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-logfile_name = f"scrape_log.{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
-logfile_path = os.path.join(LOG_DIR, logfile_name)
+logfile = f"scrape_log.{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
+
 
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
     datefmt="%m-%d %H:%M:%S",
-    filename=logfile_path,
+    filename=logfile,
     filemode="w"
 )
 
@@ -112,7 +110,7 @@ def main(argv):
     elapsed = str(end_time - start_time).split('.')[0]
 
     summary = f"""
-    Load Version 1.0.2 07/02/2025
+    Load Version 1.0.3 07/02/2025
 
     Passed Parameters: {' -t' if test_run else ''} {' -p' if production_run else ''}
 
@@ -125,7 +123,7 @@ def main(argv):
     
     logging.info(summary)
     logging.shutdown()
-    send_summary_email(summary, logfile_path)
+    send_summary_email(summary, logfile)
 
     # runs main the the args
 if __name__ == "__main__":
