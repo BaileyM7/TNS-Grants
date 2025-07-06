@@ -68,6 +68,10 @@ def callApiWithGrant(client, grant):
     OpportunityNumber = grant.get("OpportunityNumber")
     AgencyCode = grant.get("AgencyCode")
 
+    # checking to see if agency is all caps (if so make only first letter capitalized)
+    if agency.isupper():
+        agency = agency.title()
+
     # Required fields — return None if missing
     if not all([agency, opportunity_id, opportunity_title, OpportunityNumber, AgencyCode]):
         return None, None
@@ -120,8 +124,10 @@ def callApiWithGrant(client, grant):
         if description:
             details += f"- Description: {description}\n"
 
-    readable_close = datetime.strptime(close_date, "%m%d%Y").strftime("%B %d, %Y")
-    details += f"- Application deadline: {readable_close}\n"
+    # commenting out so that gpt doesnt use close date
+    
+    # readable_close = datetime.strptime(close_date, "%m%d%Y").strftime("%B %d, %Y")
+    # details += f"- Application deadline: {readable_close}\n"
 
     # Construct final prompt
     prompt = f"""
@@ -149,7 +155,7 @@ Guidelines:
 - Refer to dollar amounts in millions with a single decimal point if applicable (e.g., "$2.5 million").
 - Do not use the words “significant,” “forthcoming,” “extensive,” or “new”.
 - Do not include a dateline.
-- Do not mention hours or time zones in deadlines—use only full dates like "July 21, 2025".
+- Do not mention deadlines
 """.strip()
     
     try:

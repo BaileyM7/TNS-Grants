@@ -204,11 +204,13 @@ def get_funding_type(grant):
     category = {
     "G": 62,   # Grant
     "CA": 59,  # Cooperative Agreement
-    "O": 61, # Other — Maybe an award?
+    "O": 62, # Other — Maybe a Grant?
+    "PC": 61
 }
     # if in table, return its corresponding TNS tag match
     if grant["FundingInstrumentType"] in category:
         return category[grant["FundingInstrumentType"]]
-    # if not in table, return award
+    
+    # if not in table, return grant
     else:
-        return 61
+        return 62

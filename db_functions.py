@@ -25,6 +25,15 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
             logging.info(f"Duplicate filename, skipping: {filename}")
             return False
 
+        # Insert tags for applicants_tags, category_tags, and funding_tag
+        all_tags = set(applicants_tags + category_tags + [funding_tag])
+
+        status = 'D'
+
+        # if grant is a procurement contract, send to box 4
+        if 61 in all_tags:
+            status = 'E'
+
         # Insert into story
         insert_sql = """
         INSERT INTO story
@@ -34,6 +43,7 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
         VALUES (%s, %s, %s, %s, %s, %s, '', '', NOW(), '', '', NULL, NULL, %s, %s, SYSDATE())
         """
         today_str = datetime.now().strftime('%Y-%m-%d')
+        
         cursor.execute(insert_sql, (
             filename,
             "T55-Bailey-Proj",
@@ -41,15 +51,12 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
             "Bailey Malota",
             headline,
             body,
-            'D',
+            status,
             today_str,
         ))
 
         # Get story ID s_id
         s_id = cursor.lastrowid
-
-        # Insert tags for applicants_tags, category_tags, and funding_tag
-        all_tags = set(applicants_tags + category_tags + [funding_tag])
 
         try:
             for tag in all_tags:
