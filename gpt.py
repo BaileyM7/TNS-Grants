@@ -42,7 +42,7 @@ def get_parent_agency_abbreviation(agency_code):
     Extracts the parent agency abbreviation from an AgencyCode.
     Example: 'DOI-BLM' -> 'DOI'
     """
-    if not agency_code:
+    if not agency_code or '-' not in agency_code:
         return None
     return agency_code.split('-')[0]
 
@@ -130,9 +130,21 @@ def callApiWithGrant(client, grant):
     # details += f"- Application deadline: {readable_close}\n"
 
     # Construct final prompt
+
+    # making headline prompt and first paragraph modular based off of whether the child and parent agencuy are the same
+    if acronym:
+        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the child agency '{agency}'."
+        first_paragraph_prompt = f"""
+        - the fully spelled-out parent agency (based on the acronym {acronym})
+        - the exact child agency name: {agency}
+        """
+    else:
+        headline_prompt = f"Create and use an acronym based on the full agency name '{agency}' in the headline (not the full name)."
+        first_paragraph_prompt = f"- the exact agency name: {agency}"
+
     prompt = f"""
-Write a news story of up to 300 words with a headline based on the following federal grant opportunity. 
-Use the acronym of the parent agency "{acronym}" in the headline (not the full name), you can also mention the child agency "{agency}".
+Write a news story of up to 300 words with a headline based on the following federal grant opportunity.
+{headline_prompt}
 
 The headline should:
 - Avoid any introductory phrases like “Funding Alert,” “Grant Notice,” or “Breaking:”
@@ -140,8 +152,7 @@ The headline should:
 - Focus on the agency and the purpose or target of the grant
 
 In the first paragraph, naturally introduce the grant by identifying:
-- the fully spelled-out parent agency (based on the acronym {acronym})
-- the exact child agency name: {agency}
+{first_paragraph_prompt}
 
 For example: "The U.S. Department of State, through its Bureau of Educational and Cultural Affairs, has announced..."
 
