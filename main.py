@@ -41,9 +41,12 @@ def main(argv):
     # setting up email summary variable
     start_time = datetime.now()
     processed = 0
+    skipped = 0
+    dups = 0
     test_run = False
     production_run = False
     output_path = "grant_stories.csv"
+
 
     # gettings options
     try:
@@ -102,19 +105,27 @@ def main(argv):
 
             # inserting story if valid input and non-duplicatge filename
             if headline and story:
-                insert_story(filename, headline, story, applicants_tags, category_tags, funding_tag)
-                processed += 1
 
+                if insert_story(filename, headline, story, applicants_tags, category_tags, funding_tag) is False:
+                    dups += 1
+                else:
+                    processed += 1
+
+            elif not headline or not story:
+                skipped += 1
+            
     # formatting the summary email to be sent
     end_time = datetime.now()
     elapsed = str(end_time - start_time).split('.')[0]
 
     summary = f"""
-    Load Version 1.0.5 07/18/2025
+    Load Version 1.0.6 07/18/2025
 
     Passed Parameters: {' -t' if test_run else ''} {' -p' if production_run else ''}
 
     Grants Loaded: {processed}
+    Grants Skipped: {skipped}
+    Duplicates Found: {dups}
 
     Start Time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}
     End Time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}
