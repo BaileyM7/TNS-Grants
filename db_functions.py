@@ -46,7 +46,7 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
         
         cursor.execute(insert_sql, (
             filename,
-            "T55-Bailey-Proj",
+            "T70-Bailey-Gran",
             a_id,
             "Bailey Malota",
             headline,
