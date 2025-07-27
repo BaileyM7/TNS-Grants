@@ -14,8 +14,6 @@ from grants import get_yesterday_zip_url, get_yesterdays_date, download_and_extr
 Author: Bailey Malota
 Last Updated: Jun 30 2025
 """
-# getting the api key
-client = OpenAI(api_key=getKey())
 
 # setting up the Logging functionality
 logfile = f"scrape_log.{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
@@ -35,6 +33,10 @@ console.setLevel(logging.INFO)
 formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
 console.setFormatter(formatter)
 logging.getLogger("").addHandler(console)
+
+
+# getting the api key
+client = OpenAI(api_key=getKey())
 
 # main runner
 def main(argv):
@@ -119,7 +121,7 @@ def main(argv):
     elapsed = str(end_time - start_time).split('.')[0]
 
     summary = f"""
-    Load Version 1.0.6 07/18/2025
+    Load Version 1.0.7 07/27/2025
 
     Passed Parameters: {' -t' if test_run else ''} {' -p' if production_run else ''}
 
@@ -129,7 +131,7 @@ def main(argv):
 
     Start Time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}
     End Time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}
-    Elapsed Time: {elapsed}
+    Elapsed Time: {elapsed}  
     """
     
     logging.info(summary)
