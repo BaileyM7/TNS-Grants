@@ -101,6 +101,10 @@ def callApiWithGrant(client, grant):
     # Get acronym from agency code
     acronym = get_parent_agency_abbreviation(AgencyCode)
 
+    # DOS -> The State Department
+    if acronym == "DOS":
+        acronym = "State Departement"
+    
     # Build the details block conditionally (I found this gave more consistant GPT outputs)
     details = f"- Title: {opportunity_title}\n"
 
@@ -133,7 +137,7 @@ def callApiWithGrant(client, grant):
 
     # making headline prompt and first paragraph modular based off of whether the child and parent agencuy are the same
     if acronym:
-        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the child agency '{agency}'."
+        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the child agency '{agency}'. If the agency represented by the acroynm and the child agency are the same, only mention the child agency."
         first_paragraph_prompt = f"""
         - the fully spelled-out parent agency (based on the acronym {acronym})
         - the exact child agency name: {agency}
