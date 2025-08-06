@@ -1,89 +1,90 @@
 # Grants.gov Daily Scraper and Story Generator
 
-This project automates the process of downloading, parsing, and processing federal grants posted on [Grants.gov](https://www.grants.gov). It scrapes grant listings posted **yesterday**, generates news-style headlines and summaries using OpenAI's GPT API, and either exports the results to a CSV file for review or inserts them into a MySQL database with proper tagging for production use.
+This project automates the process of downloading, parsing, and summarizing new federal grants posted on [Grants.gov](https://www.grants.gov). It filters grants by those posted **yesterday**, uses OpenAI's GPT API to generate news-style headlines and summaries, and either saves the results to a CSV file for review or inserts them into a MySQL database for production use. A log report is sent via email after each run.
 
-## Features
+---
 
-- Downloads the most recent Grants.gov XML data file.
-- Extracts grants posted on the previous day.
-- Uses OpenAI to generate a headline and news-style article for each grant.
-- Supports both test and production modes:
-  - **Test mode (`-t`)**: Outputs results to a CSV file (`grant_stories.csv`) for manual review.
-  - **Production mode (`-p`)**: Inserts records into a database with tags for applicant type, funding category, and funding type.
-- Sends a summary email with a log file after each run.
+## 🚀 Features
 
-## Command-Line Usage
+* Downloads the latest Grants.gov XML data dump.
+* Filters for grants posted **yesterday** using `PostDate`.
+* Generates press-release style headlines and stories using GPT.
+* Supports two modes:
+
+  * **Test mode (`-t`)**: Outputs stories to `grant_stories.csv`.
+  * **Production mode (`-p`)**: Inserts stories into a database with metadata tags.
+* Sends a summary email report with attached log.
+* Tags each grant by applicant type, funding category, and funding type.
+
+---
+
+## 🖥️ Usage
 
 ```bash
-python main.py -t        # Test run: outputs to CSV
-python main.py -p        # Production run: inserts into DB
-python main.py -p -t     # Runs both modes
+# Test mode: Generate CSV for review
+python main.py -t
+
+# Production mode: Insert stories into DB
+python main.py -p
+
+# Run both modes
+python main.py -p -t
 ```
 
-## Dependencies
+---
 
--   Python 3.9+
+## 📁 Project Structure
 
--   [openai](https://pypi.org/project/openai/)
+| File              | Purpose                                               |
+| ----------------- | ----------------------------------------------------- |
+| `main.py`         | Coordinates the full scraping and processing pipeline |
+| `grants.py`       | Downloads, parses, and filters the Grants XML data    |
+| `gpt.py`          | Builds GPT prompts and processes completions          |
+| `email_utils.py`  | Sends summary report emails with logs                 |
+| `db_functions.py` | Inserts tagged grant stories into the MySQL database  |
+| `utils/key.txt`   | Stores OpenAI API key                                 |
 
--   [beautifulsoup4](https://pypi.org/project/beautifulsoup4/)
+---
 
--   [requests](https://pypi.org/project/requests/)
+## 🧰 Requirements
 
--   [lxml](https://pypi.org/project/lxml/) (optional, but recommended for faster XML parsing)
+* Python 3.9+
+* [`openai`](https://pypi.org/project/openai/)
+* [`requests`](https://pypi.org/project/requests/)
+* [`beautifulsoup4`](https://pypi.org/project/beautifulsoup4/)
+* [`lxml`](https://pypi.org/project/lxml/) (optional but faster XML parsing)
+* SMTP credentials (for sending reports)
+* MySQL database with required schema
 
--   A valid OpenAI API key stored in `utils/key.txt`
+---
 
--   MySQL database and `db_functions.py` for DB connectivity
+## 📝 Output
 
--   SMTP credentials for sending email reports
+**Test Mode (`-t`)**
 
-## File Structure
+* `grant_stories.csv` with columns:
 
+  * `Filename`
+  * `Headline`
+  * `Story Text`
 
--   `main.py` --- Orchestrates the full workflow.
+**Production Mode (`-p`)**
 
--   `grants.py` --- Handles XML download, parsing, and tagging.
+* Inserts stories into MySQL with:
 
--   `gpt.py` --- Handles GPT prompt construction and API calls.
+  * Applicant Type Tags
+  * Funding Category Tags
+  * Funding Instrument Type Tags
 
--   `email_utils.py` --- Sends summary email with log attachment.
+---
 
--   `db_functions.py` --- Handles database inserts (not included here).
+## 📞 Logging & Reporting
 
--   `utils/key.txt` --- Contains your OpenAI API key.
+Each run generates a timestamped log file (e.g. `scrape_log.2025-08-05_09-00-00.log`). A summary email is automatically sent with the log file attached.
 
-## Output
+---
 
+## ✍️ Author
 
-In test mode:
-
--   Outputs a CSV file with columns: `Filename`, `Headline`, `Story Text`.
-
-In production mode:
-
--   Inserts generated stories into a database with proper tagging.
-
--   Tagging includes:
-
-    -   Applicant types
-
-    -   Funding categories
-
-    -   Funding instrument type (Grant, Cooperative Agreement, etc.)
-
-## Logging and Reporting
-
-
-Each run generates a timestamped log file (e.g., `scrape_log.2025-06-30_12-00-00.log`) and sends a summary email with the log attached.
-
-## Notes
-
--   The scraper filters grants based on their `PostDate`, checking only those posted **yesterday**.
-
--   GPT-generated headlines and summaries follow strict editorial guidelines to ensure clarity, professionalism, and consistency with TNS formatting.
-
-## Author
-
-Bailey Malota\
-*Last updated: June 30, 2025*
+Bailey Malota
+*Last updated: August 5, 2025*
