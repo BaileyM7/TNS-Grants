@@ -3,7 +3,7 @@ import logging
 import platform
 from openai import OpenAI
 from datetime import datetime
-from cleanup_text import cleanup_text, clean_text
+from cleanup_text import cleanup_text, clean_text, TNS_clean
 
 # gets the api keys
 def getKey():
@@ -204,6 +204,10 @@ Guidelines:
 
         story = clean_text(story)
         story = cleanup_text(story)
+        
+        # cleaning text via TNS editors instructions
+        headline = TNS_clean(headline)
+        story = TNS_clean(story)
         
         return headline, story
 

@@ -274,3 +274,12 @@ def clean_text(text):
     text = text.replace("[NEWLINE SEPARATOR]", "")
     text = text.strip().replace('\"', "").replace('Headline:', "").replace('headline:', "")
     return text
+
+# this function goes through all of the added formatting edits by TNS editors
+# this are manually done becuase they are exce[tions to the gramatical rules set in place
+def TNS_clean(text):
+    text = text.replace("Department of Defense USACE Portland District", "U.S. Army Corps of Engineers Portland District")
+    text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
+    text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
+    
+    return text
