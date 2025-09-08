@@ -24,6 +24,11 @@ def get_body_date():
     month = today.strftime('%B') 
     short_month = today.strftime('%b')
     formatted_month = month if len(month) <= 5 else short_month + "."
+
+    # Special case for September
+    if month == "September":
+        formatted_month = "Sept."
+
     day_format = '%-d' if platform.system() != 'Windows' else '%#d'
     return f"{formatted_month} {today.strftime(day_format)}"
 
