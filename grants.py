@@ -86,15 +86,53 @@ def parse_yesterdays_grants(file):
                     "EligibleApplicants": [e.text for e in opp.findall("ns:EligibleApplicants", ns)],
                     "CategoryOfFundingActivity": [c.text for c in opp.findall("ns:CategoryOfFundingActivity", ns)],
                     "FundingInstrumentType": opp.findtext("ns:FundingInstrumentType", default="", namespaces=ns),
+                    "IsForecasted": False
                 }
                 
                 if len(grant_data["AgencyName"]) == 50 and get_full_child_agency_name(grant_data["AgencyCode"]):
                     grant_data["AgencyName"] = get_full_child_agency_name(grant_data["AgencyCode"])
 
                 grants.append(grant_data)
-            
+
     except Exception as e:
         logging.info(f"Hit error when parsing grants {e}")
+
+    try:
+        # Process FORECASTED grants (OpportunityForecastDetail_1_0)
+        for opp in root.findall("ns:OpportunityForecastDetail_1_0", ns):
+            post_date = opp.find("ns:PostDate", ns)
+
+            # if the grant was posted yesterday, then it grabs its data
+            if post_date is not None and post_date.text == yesterday:
+
+                # creates a dict holding all needed info for a forecasted grant
+                grant_data = {
+                    "OpportunityID": opp.findtext("ns:OpportunityID", default="", namespaces=ns),
+                    "OpportunityNumber": opp.findtext("ns:OpportunityNumber", default="", namespaces=ns),
+                    "OpportunityTitle": opp.findtext("ns:OpportunityTitle", default="", namespaces=ns),
+                    "AgencyCode": opp.findtext("ns:AgencyCode", default="", namespaces=ns),
+                    "AgencyName": opp.findtext("ns:AgencyName", default="", namespaces=ns),
+                    "Description": opp.findtext("ns:Description", default="", namespaces=ns),
+                    "AwardCeiling": opp.findtext("ns:AwardCeiling", default="", namespaces=ns),
+                    "AwardFloor": opp.findtext("ns:AwardFloor", default="", namespaces=ns),
+                    "EstimatedTotalProgramFunding": opp.findtext("ns:EstimatedTotalProgramFunding", default="", namespaces=ns),
+                    "ExpectedNumberOfAwards": opp.findtext("ns:ExpectedNumberOfAwards", default="", namespaces=ns),
+                    "AdditionalInformationOnEligibility": opp.findtext("ns:AdditionalInformationOnEligibility", default="", namespaces=ns),
+                    "CloseDate": opp.findtext("ns:CloseDate", default="", namespaces=ns),
+                    "EstimatedSynopsisCloseDate": opp.findtext("ns:EstimatedSynopsisCloseDate", default="", namespaces=ns),
+                    "EligibleApplicants": [e.text for e in opp.findall("ns:EligibleApplicants", ns)],
+                    "CategoryOfFundingActivity": [c.text for c in opp.findall("ns:CategoryOfFundingActivity", ns)],
+                    "FundingInstrumentType": opp.findtext("ns:FundingInstrumentType", default="", namespaces=ns),
+                    "IsForecasted": True
+                }
+
+                if len(grant_data["AgencyName"]) == 50 and get_full_child_agency_name(grant_data["AgencyCode"]):
+                    grant_data["AgencyName"] = get_full_child_agency_name(grant_data["AgencyCode"])
+
+                grants.append(grant_data)
+
+    except Exception as e:
+        logging.info(f"Hit error when parsing forecasted grants {e}")
 
     # print(grants)
     # returns a list of dictionaries containing info from all the grants

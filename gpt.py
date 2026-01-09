@@ -35,11 +35,15 @@ def get_body_date():
 # turns grant date into a TNS approved format
 def format_grant_date(date_str):
     """Convert a date like '07222025' to '7/22/25'."""
+    # Handle empty or None strings
+    if not date_str or date_str == "None":
+        return "to be determined"
+
     try:
         date = datetime.strptime(date_str, "%m%d%Y")
         return f"{date.month}/{date.day}/{str(date.year)[-2:]}"
     except Exception:
-        return date_str  # fallback if the format is unexpected
+        return "to be determined"  # fallback for invalid dates
 
 # gets the parent govenrment agency to put into report
 def get_parent_agency_abbreviation(agency_code):
@@ -88,7 +92,12 @@ def callApiWithGrant(client, grant):
     expected_awards = grant.get("ExpectedNumberOfAwards", 1)
     eligibility = grant.get("AdditionalInformationOnEligibility")
     description = grant.get("Description")
-    close_date = grant.get("CloseDate", "No close date provided.")
+    is_forecasted = grant.get("IsForecasted", False)
+    close_date = grant.get("CloseDate", "")
+
+    # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is empty
+    if is_forecasted and (not close_date or close_date == "None"):
+        close_date = grant.get("EstimatedSynopsisCloseDate", "")
 
     # Format amounts
     award_floor = millions(award_floor_val)
@@ -200,7 +209,8 @@ Guidelines:
         today_date = get_body_date()
         story = f"WASHINGTON, {today_date} -- {body_raw.strip()}"
         close_date = format_grant_date(close_date)
-        story += f"\n\nThe deadline for application is {close_date}. The funding opportunity number is {OpportunityNumber}."
+        deadline_label = "estimated deadline" if is_forecasted else "deadline"
+        story += f"\n\nThe {deadline_label} for application is {close_date}. The funding opportunity number is {OpportunityNumber}."
         story += f"\n\n* * *\n\nView grant announcement here: https://www.grants.gov/search-results-detail/{opportunity_id}"
 
         # getting rid of stray input from gpt and turning all text into ASCII charectors for DB
