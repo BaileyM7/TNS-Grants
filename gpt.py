@@ -115,6 +115,11 @@ def callApiWithGrant(client, grant):
     # Get acronym from agency code
     acronym = get_parent_agency_abbreviation(AgencyCode)
 
+    # Strip redundant parent-acronym prefix when XML embeds it in AgencyName
+    # (e.g. "DOC National Oceanic..." -> "National Oceanic...")
+    if acronym and agency.startswith(f"{acronym} "):
+        agency = agency[len(acronym) + 1:]
+
     # DOS -> The State Department
     if acronym == "DOS":
         acronym = "State Departement"
@@ -151,10 +156,10 @@ def callApiWithGrant(client, grant):
 
     # making headline prompt and first paragraph modular based off of whether the child and parent agencuy are the same
     if acronym:
-        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the child agency '{agency}'. If the agency represented by the acroynm and the child agency are the same, only mention the child agency."
+        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the agency '{agency}'. If the agency represented by the acronym and '{agency}' are the same, only mention '{agency}'."
         first_paragraph_prompt = f"""
         - the fully spelled-out parent agency (based on the acronym {acronym})
-        - the exact child agency name: {agency}
+        - the exact agency name: {agency}
         """
     else:
         headline_prompt = f"Create and use an acronym based on the full agency name '{agency}' in the headline (not the full name)."
