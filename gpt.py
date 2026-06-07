@@ -3,7 +3,15 @@ import logging
 import platform
 from openai import OpenAI
 from datetime import datetime
-from cleanup_text import cleanup_text, clean_text, TNS_clean
+from cleanup_text import cleanup_text, clean_text, TNS_clean, clean_headline
+
+# Raw parent acronyms (from AgencyCode) that TNS writes differently in headlines.
+# Agencies not listed here are used as-is. Extend as new agencies appear.
+ACRONYM_OVERRIDES = {
+    "USDOT": "DOT",   # QA: "It's just DOT."
+    "USDOJ": "DOJ",   # QA: "It's just DOJ."
+    "ED": "DE",       # QA: Dept. of Education is "DE"; "DOE" means Dept. of Energy.
+}
 
 # gets the api keys
 def getKey():
@@ -49,10 +57,11 @@ def format_grant_date(date_str):
 def get_parent_agency_abbreviation(agency_code):
     """
     Extracts the parent agency abbreviation from an AgencyCode.
-    Example: 'DOI-BLM' -> 'DOI'
+    Example: 'DOI-BLM' -> 'DOI', 'ED' -> 'ED'
     """
-    if not agency_code or '-' not in agency_code:
+    if not agency_code:
         return None
+    # A dash-less code (e.g. 'ED') is itself the parent acronym.
     return agency_code.split('-')[0]
 
 # calls GPT to summarize grant info
@@ -113,17 +122,19 @@ def callApiWithGrant(client, grant):
             total_funding = None
 
     # Get acronym from agency code
-    acronym = get_parent_agency_abbreviation(AgencyCode)
+    raw_acronym = get_parent_agency_abbreviation(AgencyCode)
 
     # Strip redundant parent-acronym prefix when XML embeds it in AgencyName
     # (e.g. "DOC National Oceanic..." -> "National Oceanic...")
-    if acronym and agency.startswith(f"{acronym} "):
-        agency = agency[len(acronym) + 1:]
+    if raw_acronym and agency.startswith(f"{raw_acronym} "):
+        agency = agency[len(raw_acronym) + 1:]
 
-    # DOS -> The State Department
-    if acronym == "DOS":
-        acronym = "State Departement"
-    
+    # State Department (and its missions/bureaus): headline shows only the parent "State Dept."
+    is_state_dept = raw_acronym == "DOS"
+
+    # Apply TNS headline acronym conventions (e.g. USDOT -> DOT, USDOJ -> DOJ)
+    acronym = ACRONYM_OVERRIDES.get(raw_acronym, raw_acronym)
+
     # Build the details block conditionally (I found this gave more consistant GPT outputs)
     details = f"- Title: {opportunity_title}\n"
 
@@ -155,14 +166,36 @@ def callApiWithGrant(client, grant):
     # Construct final prompt
 
     # making headline prompt and first paragraph modular based off of whether the child and parent agencuy are the same
-    if acronym:
-        headline_prompt = f"Use the acronym of the parent agency '{acronym}' in the headline (not the full name), you can also mention the agency '{agency}'. If the agency represented by the acronym and '{agency}' are the same, only mention '{agency}'."
+    if is_state_dept:
+        # State Department grants: only the parent "State Dept." belongs in the headline.
+        headline_prompt = (
+            'Begin the headline with "State Dept." Do not mention any bureau, mission, '
+            "or child agency in the headline."
+        )
+        first_paragraph_prompt = "- the agency, referred to as the State Dept. (the U.S. Department of State)"
+    elif acronym:
+        # GPT tends to abbreviate "Department of Education" as DOE, but DOE is the
+        # Department of Energy. TNS wants "DE" for Education, so call it out explicitly.
+        ed_note = ""
+        if acronym == "DE":
+            ed_note = (
+                " Note: 'DE' is the U.S. Department of Education; always use 'DE' and never "
+                "'DOE' or 'ED'. ('DOE' refers to the Department of Energy.)"
+            )
+        headline_prompt = (
+            f"Begin the headline with the parent agency acronym '{acronym}' (not the full name). "
+            f"You may also mention the agency '{agency}'. If '{acronym}' and '{agency}' refer to "
+            f"the same entity, mention only '{agency}'.{ed_note}"
+        )
         first_paragraph_prompt = f"""
         - the fully spelled-out parent agency (based on the acronym {acronym})
         - the exact agency name: {agency}
         """
     else:
-        headline_prompt = f"Create and use an acronym based on the full agency name '{agency}' in the headline (not the full name)."
+        headline_prompt = (
+            f"Begin the headline with an acronym you create from the full agency name "
+            f"'{agency}' (not the full name)."
+        )
         first_paragraph_prompt = f"- the exact agency name: {agency}"
 
     prompt = f"""
@@ -170,9 +203,13 @@ Write a news story of up to 300 words with a headline based on the following fed
 {headline_prompt}
 
 The headline should:
+- Start with the agency name or acronym (the agency must be the first thing in the headline)
 - Avoid any introductory phrases like “Funding Alert,” “Grant Notice,” or “Breaking:”
 - Be clear, descriptive, and written in a professional journalistic tone
 - Focus on the agency and the purpose or target of the grant
+- Not contain parentheses
+- Not use possessive apostrophes on agency names (write "USDA Rural Utilities Service," not "USDA's Rural Utilities Service")
+- Write acronyms without periods (write "DOE," not "D.O.E.")
 
 In the first paragraph, naturally introduce the grant by identifying:
 {first_paragraph_prompt}
@@ -228,7 +265,11 @@ Guidelines:
         # cleaning text via TNS editors instructions
         headline = TNS_clean(headline)
         story = TNS_clean(story)
-        
+
+        # enforce TNS headline-only conventions deterministically (no periods in
+        # acronyms, no parentheses, no possessives, "State Dept.", ED not DOE, etc.)
+        headline = clean_headline(headline, expected_acronym=acronym)
+
         return headline, story
 
     except Exception as e:

@@ -281,5 +281,51 @@ def TNS_clean(text):
     text = text.replace("Department of Defense USACE Portland District", "U.S. Army Corps of Engineers Portland District")
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
     text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
-    
+
+    return text
+
+
+# US-prefixed parent acronyms that TNS writes without the "US" in headlines.
+# Extend as new agencies turn up in QA feedback.
+HEADLINE_ACRONYM_FIXES = {
+    "USDOT": "DOT",   # QA: "It's just DOT."
+    "USDOJ": "DOJ",   # QA: "It's just DOJ."
+}
+
+# Enforces TNS headline-only conventions flagged by the QA team. Runs AFTER
+# cleanup_text / clean_text / TNS_clean, on the headline only -- never the body.
+# expected_acronym is the grant's true parent acronym (used to fix the ED/DOE clash).
+def _strip_acronym_periods(match):
+    # "D.O.E." -> "DOE", but keep "U.S." (TNS writes it with periods in headlines).
+    token = match.group(0)
+    if token.replace('.', '').upper() == 'US':
+        return token
+    return token.replace('.', '')
+
+
+def clean_headline(text, expected_acronym=None):
+    # Remove periods inside acronyms: "D.O.E." -> "DOE", "D.E." -> "DE" (keeps "U.S.").
+    text = re.sub(r'\b(?:[A-Z]\.){2,}', _strip_acronym_periods, text)
+
+    # The State Department is always "State Dept." in headlines.
+    text = re.sub(r"\b(?:the\s+)?(?:U\.S\.\s+)?Department of State(?:'s)?\b", "State Dept.", text)
+    text = re.sub(r"\b(?:the\s+)?State Department(?:'s)?\b", "State Dept.", text)
+
+    # No parentheses (or their contents): "Fund (AEIF) 2026" -> "Fund 2026".
+    text = re.sub(r'\s*\([^)]*\)', '', text)
+
+    # No possessive apostrophe on agency acronyms: "USDA's" -> "USDA".
+    text = re.sub(r"\b([A-Z]{2,})'s\b", r'\1', text)
+
+    # US-prefixed acronyms drop the "US" in headlines: "USDOT" -> "DOT".
+    for bad, good in HEADLINE_ACRONYM_FIXES.items():
+        text = re.sub(rf'\b{bad}\b', good, text)
+
+    # Department of Education is "DE", never "DOE" (Dept. of Energy) or "ED".
+    # Only fires for Education grants, so Energy's "DOE" is left untouched.
+    if expected_acronym == "DE":
+        text = re.sub(r'\b(?:DOE|ED)\b', 'DE', text)
+
+    # Collapse any double spaces left by the removals above.
+    text = re.sub(r'\s{2,}', ' ', text).strip()
     return text
