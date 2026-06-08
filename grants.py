@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import logging
 import zipfile
 import requests
@@ -252,3 +253,18 @@ def get_funding_type(grant):
     # if not in table, return grant
     else:
         return 62
+
+# language that indicates a sole-source (non-competitive) award.
+# "single source" is intentionally NOT matched: it is a false-positive
+# magnet ("single source of funding", "single point of contact").
+_SOLE_SOURCE_RE = re.compile(r"sole[\s-]?source|non[\s-]?competitive|noncompetitive", re.IGNORECASE)
+
+# free-text fields we already parse that carry the sole-source signal
+_SOLE_SOURCE_FIELDS = ("OpportunityTitle", "Description", "AdditionalInformationOnEligibility")
+
+# returns True if the grant's text indicates a sole-source / non-competitive award
+def is_sole_source(grant):
+    for field in _SOLE_SOURCE_FIELDS:
+        if _SOLE_SOURCE_RE.search(grant.get(field) or ""):
+            return True
+    return False
