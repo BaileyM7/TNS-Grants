@@ -281,6 +281,7 @@ def TNS_clean(text):
     text = text.replace("Department of Defense USACE Portland District", "U.S. Army Corps of Engineers Portland District")
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
     text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
+    text = re.sub(r"\bUnited States\b", "U.S.", text)
 
     return text
 
