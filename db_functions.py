@@ -13,7 +13,7 @@ def get_db_connection(yml_path="configs/db_config.yml"):
         database=config["database"]
     )
 
-def insert_story(filename, headline, body, applicants_tags, category_tags, funding_tag, a_id = 51):
+def insert_story(filename, headline, body, orig_txt, applicants_tags, category_tags, funding_tag, a_id = 51):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -37,13 +37,13 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
         # Insert into story
         insert_sql = """
         INSERT INTO story
-        (filename, uname, source, by_line, headline, story_txt, editor, invoice_tag,
+        (filename, uname, source, by_line, headline, story_txt, orig_txt, editor, invoice_tag,
          date_sent, sent_to, wire_to, nexis_sent, factiva_sent,
          status, content_date, last_action)
-        VALUES (%s, %s, %s, %s, %s, %s, '', '', NOW(), '', '', NULL, NULL, %s, %s, SYSDATE())
+        VALUES (%s, %s, %s, %s, %s, %s, %s, '', '', NOW(), '', '', NULL, NULL, %s, %s, SYSDATE())
         """
         today_str = datetime.now().strftime('%Y-%m-%d')
-        
+
         cursor.execute(insert_sql, (
             filename,
             "G-GrantsBM",
@@ -51,6 +51,7 @@ def insert_story(filename, headline, body, applicants_tags, category_tags, fundi
             "Bailey Malota",
             headline,
             body,
+            orig_txt,
             status,
             today_str,
         ))

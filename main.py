@@ -78,15 +78,15 @@ def main(argv):
         logging.info("TEST run")
         with open(output_path, "w", newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Filename", "Headline", "Story Text"])  # header row
+            writer.writerow(["Filename", "Headline", "Story Text", "Original Text"])  # header row
 
             for grant in grants:
                 filename = generate_filename(grant)
-                headline, story = callApiWithGrant(client, grant)
-                
+                headline, story, orig_txt = callApiWithGrant(client, grant)
+
                 # if callApiWithGrant didnt return None, then write row
                 if headline and story:
-                    writer.writerow([filename, headline, story])
+                    writer.writerow([filename, headline, story, orig_txt])
                     processed += 1
     
     # inserts into the story coder if this is running in production
@@ -100,7 +100,7 @@ def main(argv):
         for grant in grants:
             # running all grant functions to get data and tags for each grant
             filename = generate_filename(grant)
-            headline, story = callApiWithGrant(client, grant)
+            headline, story, orig_txt = callApiWithGrant(client, grant)
             applicants_tags = get_applicants_tags(grant)
             category_tags = get_funding_category_tags(grant)
             funding_tag = get_funding_type(grant)
@@ -108,7 +108,7 @@ def main(argv):
             # inserting story if valid input and non-duplicatge filename
             if headline and story:
 
-                if insert_story(filename, headline, story, applicants_tags, category_tags, funding_tag) is False:
+                if insert_story(filename, headline, story, orig_txt, applicants_tags, category_tags, funding_tag) is False:
                     dups += 1
                 else:
                     processed += 1

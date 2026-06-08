@@ -13,6 +13,19 @@ ACRONYM_OVERRIDES = {
     "ED": "DE",       # QA: Dept. of Education is "DE"; "DOE" means Dept. of Energy.
 }
 
+# builds the orig_txt audit value: every scraped grant field + the exact GPT prompt
+def build_original_text(grant, prompt):
+    """orig_txt = a labeled dump of every scraped grant field, then the GPT prompt."""
+    lines = ["=== ORIGINAL GRANT DATA (scraped from Grants.gov) ==="]
+    for key, value in grant.items():
+        if isinstance(value, list):
+            value = ", ".join(str(v) for v in value if v is not None)
+        lines.append(f"{key}: {value}")
+    lines.append("")
+    lines.append("=== GPT PROMPT ===")
+    lines.append(prompt)
+    return cleanup_text("\n".join(lines))  # ASCII-safe for the TNS DB
+
 # gets the api keys
 def getKey():
     """Retrieves the OpenAI API key from a file."""
@@ -92,7 +105,7 @@ def callApiWithGrant(client, grant):
 
     # Required fields — return None if missing
     if not all([agency, opportunity_id, opportunity_title, OpportunityNumber, AgencyCode]):
-        return None, None
+        return None, None, None
 
     # Optional fields
     award_floor_val = grant.get("AwardFloor")
@@ -228,7 +241,10 @@ Guidelines:
 - Do not include a dateline.
 - Do not mention deadlines
 """.strip()
-    
+
+    # build the orig_txt audit trail (raw scraped grant data + the exact prompt)
+    orig_txt = build_original_text(grant, prompt)
+
     try:
         # Generate main press release
         response = client.chat.completions.create(
@@ -242,7 +258,7 @@ Guidelines:
         if len(parts) != 2:
             # TODO: ADD LOG MESSAGE HERE
             logging.info(f"Headline Wasnt Parsed Right")
-            return None, None 
+            return None, None, None
 
         # getting both the headline and body
         headline_raw = parts[0]
@@ -270,8 +286,8 @@ Guidelines:
         # acronyms, no parentheses, no possessives, "State Dept.", ED not DOE, etc.)
         headline = clean_headline(headline, expected_acronym=acronym)
 
-        return headline, story
+        return headline, story, orig_txt
 
     except Exception as e:
         logging.info(f"OpenAI API error: {e}")
-        return None, None 
+        return None, None, None
