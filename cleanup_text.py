@@ -293,6 +293,22 @@ HEADLINE_ACRONYM_FIXES = {
     "USDOJ": "DOJ",   # QA: "It's just DOJ."
 }
 
+# Headlinese drops the auxiliary "is/are": "is accepting" -> "accepts". QA flag
+# (Myron, 06/07): "There shouldn't be the word 'is' in any hed." Generic
+# -ing -> present conjugation is unsafe (invite/issue/provide drop a silent 'e'),
+# so map each verb explicitly. Extend as new gerunds turn up in QA feedback.
+HEADLINE_VERB_FIXES = {
+    "accepting":  "accepts",
+    "seeking":    "seeks",
+    "opening":    "opens",
+    "inviting":   "invites",
+    "offering":   "offers",
+    "providing":  "provides",
+    "requesting": "requests",
+    "soliciting": "solicits",
+    "announcing": "announces",
+}
+
 # Enforces TNS headline-only conventions flagged by the QA team. Runs AFTER
 # cleanup_text / clean_text / TNS_clean, on the headline only -- never the body.
 # expected_acronym is the grant's true parent acronym (used to fix the ED/DOE clash).
@@ -326,6 +342,15 @@ def clean_headline(text, expected_acronym=None):
     # Only fires for Education grants, so Energy's "DOE" is left untouched.
     if expected_acronym == "DE":
         text = re.sub(r'\b(?:DOE|ED)\b', 'DE', text)
+
+    # Drop the auxiliary verb so heds read in headlinese:
+    # "<agency> is accepting applications" -> "<agency> accepts applications".
+    def _drop_aux(match):
+        return HEADLINE_VERB_FIXES[match.group(1).lower()]
+    text = re.sub(
+        r'\b(?:is|are)\s+(' + '|'.join(HEADLINE_VERB_FIXES) + r')\b',
+        _drop_aux, text, flags=re.IGNORECASE,
+    )
 
     # Collapse any double spaces left by the removals above.
     text = re.sub(r'\s{2,}', ' ', text).strip()

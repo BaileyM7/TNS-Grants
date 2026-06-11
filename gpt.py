@@ -217,7 +217,7 @@ Write a news story of up to 300 words with a headline based on the following fed
 
 The headline should:
 - Start with the agency name or acronym (the agency must be the first thing in the headline)
-- Frame the opportunity as currently open and accepting applications. Use forward-looking, active verbs (e.g. "seeks," "is accepting applications for," "opens funding for," "invites proposals for"). Do not use verbs that imply the funding is already distributed or the opportunity has closed (e.g. "grants," "awards," "awarded," "funded," "gave")
+- Use a simple present-tense active verb for the agency's action (e.g. "seeks," "accepts applications for," "opens funding for," "invites proposals for") so the opportunity reads as currently open. Do NOT use the auxiliary "is" or "are" before an "-ing" verb -- write "accepts applications for," never "is accepting applications for." Do not use verbs that imply the funding is already distributed or the opportunity has closed (e.g. "grants," "awards," "awarded," "funded," "gave")
 - Avoid any introductory phrases like “Funding Alert,” “Grant Notice,” or “Breaking:”
 - Be clear, descriptive, and written in a professional journalistic tone
 - Focus on the agency and the purpose or target of the grant
