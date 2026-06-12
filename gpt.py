@@ -3,7 +3,7 @@ import logging
 import platform
 from openai import OpenAI
 from datetime import datetime
-from cleanup_text import cleanup_text, clean_text, TNS_clean, clean_headline
+from cleanup_text import cleanup_text, clean_text, TNS_clean, clean_headline, suppress_dod_reference
 
 # Raw parent acronyms (from AgencyCode) that TNS writes differently in headlines.
 # Agencies not listed here are used as-is. Extend as new agencies appear.
@@ -77,6 +77,32 @@ def get_parent_agency_abbreviation(agency_code):
     # A dash-less code (e.g. 'ED') is itself the parent acronym.
     return agency_code.split('-')[0]
 
+# DoD service branches are written as "U.S. Army"/"U.S. Navy"/"U.S. Air Force" and
+# never alongside a "Department of Defense"/"DOD" reference (TNS editor rule). Note:
+# defense-wide agencies (DARPA, DLA, etc.) are NOT branches and keep their DOD framing.
+def get_service_branch(agency_name):
+    """Return the branch label if the agency name identifies a service branch, else None.
+    Order matters: 'air force' is checked before the broader keywords."""
+    name = (agency_name or "").lower()
+    if "air force" in name:
+        return "U.S. Air Force"
+    if "navy" in name or "naval" in name:
+        return "U.S. Navy"
+    if "army" in name:
+        return "U.S. Army"
+    return None
+
+# strips a leading "Dept. of the Army --" style prefix, leaving the command/office
+def get_branch_office(agency_name):
+    """'Dept of the Army -- Materiel Command' -> 'Materiel Command'.
+    Returns '' when the name is just the branch with no specific office."""
+    office = re.sub(
+        r"^\s*(?:U\.S\.\s+)?(?:Department|Dept\.?)\s+of\s+the\s+(?:Army|Navy|Air Force)\s*",
+        "", agency_name or "", flags=re.IGNORECASE,
+    )
+    office = office.strip(" -–—:|")
+    return "" if office.lower() in ("", "army", "navy", "air force") else office
+
 # calls GPT to summarize grant info
 def callApiWithGrant(client, grant):
     # converts dollar amount into TNS specified format
@@ -148,6 +174,15 @@ def callApiWithGrant(client, grant):
     # Apply TNS headline acronym conventions (e.g. USDOT -> DOT, USDOJ -> DOJ)
     acronym = ACRONYM_OVERRIDES.get(raw_acronym, raw_acronym)
 
+    # DoD service branches (Army/Navy/Air Force) drop the DOD framing entirely and
+    # lead with the branch + its command. Only DOD-parented grants are considered.
+    service_branch = get_service_branch(agency) if raw_acronym == "DOD" else None
+    branch_office = get_branch_office(agency) if service_branch else ""
+    if service_branch:
+        # Downstream "exact agency name" becomes the clean branch form, e.g.
+        # "U.S. Army Materiel Command" -- never "Dept of the Army -- ...".
+        agency = f"{service_branch} {branch_office}".strip() if branch_office else service_branch
+
     # Build the details block conditionally (I found this gave more consistant GPT outputs)
     details = f"- Title: {opportunity_title}\n"
 
@@ -186,6 +221,24 @@ def callApiWithGrant(client, grant):
             "or child agency in the headline."
         )
         first_paragraph_prompt = "- the agency, referred to as the State Dept. (the U.S. Department of State)"
+    elif service_branch:
+        # Army/Navy/Air Force: lead with the branch (+ its command) and never
+        # reference the Department of Defense anywhere in the story (TNS rule).
+        if branch_office:
+            headline_prompt = (
+                f'Begin the headline with "{service_branch}," then name its specific '
+                f'command "{branch_office}." '
+            )
+        else:
+            headline_prompt = f'Begin the headline with "{service_branch}." '
+        headline_prompt += (
+            'Do not mention the Department of Defense, "DOD," or "DoD" anywhere in the '
+            "headline or story."
+        )
+        first_paragraph_prompt = (
+            f"- the agency as the {service_branch}"
+            + (f", through its {branch_office}" if branch_office else "")
+        )
     elif acronym:
         # GPT tends to abbreviate "Department of Education" as DOE, but DOE is the
         # Department of Energy. TNS wants "DE" for Education, so call it out explicitly.
@@ -286,6 +339,12 @@ Guidelines:
         # enforce TNS headline-only conventions deterministically (no periods in
         # acronyms, no parentheses, no possessives, "State Dept.", ED not DOE, etc.)
         headline = clean_headline(headline, expected_acronym=acronym)
+
+        # Army/Navy/Air Force: strip any lingering DOD reference, replacing it with the
+        # branch (belt-and-suspenders behind the prompt's "do not mention DOD" instruction).
+        if service_branch:
+            headline = suppress_dod_reference(headline, service_branch)
+            story = suppress_dod_reference(story, service_branch)
 
         return headline, story, orig_txt
 

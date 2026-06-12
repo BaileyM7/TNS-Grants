@@ -281,6 +281,16 @@ def TNS_clean(text):
     text = text.replace("Department of Defense USACE Portland District", "U.S. Army Corps of Engineers Portland District")
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
     text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
+
+    # TNS rule (Myron): it's never "Department of the Army/Navy/Air Force" -- it's
+    # "U.S. Army", "U.S. Navy", "U.S. Air Force". Applies to headline and body.
+    def _us_branch(m):
+        return "U.S. " + m.group(1).title()
+    text = re.sub(
+        r"\b(?:U\.S\.\s+)?(?:Department|Dept\.?)\s+of\s+the\s+(Army|Navy|Air Force)\b",
+        _us_branch, text, flags=re.IGNORECASE,
+    )
+
     text = re.sub(r"\bUnited States\b", "U.S.", text)
 
     return text
@@ -354,4 +364,18 @@ def clean_headline(text, expected_acronym=None):
 
     # Collapse any double spaces left by the removals above.
     text = re.sub(r'\s{2,}', ' ', text).strip()
+    return text
+
+
+# TNS rule (Myron): an Army/Navy/Air Force story must not reference the Department of
+# Defense. Replaces any lingering DOD reference with the branch label (e.g. "U.S. Army").
+# Called per-grant from gpt.py only for service-branch grants -- never defense-wide ones.
+def suppress_dod_reference(text, branch):
+    text = re.sub(r"\b(?:United States|U\.S\.)\s+Department of Defense\b", branch, text)
+    text = re.sub(r"\bDepartment of Defense\b", branch, text)
+    text = re.sub(r"\bDoD\b", branch, text)
+    text = re.sub(r"\bDOD\b", branch, text)
+    # Collapse a duplicate branch the swap may create ("U.S. Army Army" -> "U.S. Army").
+    text = re.sub(r"\b(Army|Navy|Air Force)\s+\1\b", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text).strip()
     return text
