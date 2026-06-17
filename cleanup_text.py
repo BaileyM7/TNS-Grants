@@ -282,6 +282,10 @@ def TNS_clean(text):
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
     text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
 
+    # TNS rule (06/16): NASA is always "NASA", never spelled out. Also swallow a
+    # trailing "(NASA)" so GPT's "...Administration (NASA)" -> "NASA", not "NASA (NASA)".
+    text = re.sub(r"National Aeronautics and Space Administration(?:\s*\(NASA\))?", "NASA", text)
+
     # TNS rule (Myron): it's never "Department of the Army/Navy/Air Force" -- it's
     # "U.S. Army", "U.S. Navy", "U.S. Air Force". Applies to headline and body.
     def _us_branch(m):
@@ -379,3 +383,18 @@ def suppress_dod_reference(text, branch):
     text = re.sub(r"\b(Army|Navy|Air Force)\s+\1\b", r"\1", text)
     text = re.sub(r"\s{2,}", " ", text).strip()
     return text
+
+
+# TNS rule (Myron, 06/13): a load must never point readers to a page of an external
+# document (e.g. "eligibility requirements can be found on pages 2 to 3 of the
+# announcement package"). The page reference originates in the raw eligibility text fed
+# to GPT. Drop any sentence that cites a page number AND a document keyword -- requiring
+# both keeps ordinary prose untouched. Story body only -- never the headline.
+def strip_page_references(text):
+    """Drop any sentence that tells the reader to see a page of an external document."""
+    parts = re.split(r'(?<=[.!?])\s+', text)
+    kept = [s for s in parts if not (
+        re.search(r'\bpages?\s+\d+', s, re.IGNORECASE) and
+        re.search(r'\b(announcement|package|FOA|RFA|NOFO|RFP|document|attachment|solicitation|section)\b', s, re.IGNORECASE)
+    )]
+    return re.sub(r'\s{2,}', ' ', ' '.join(kept)).strip()

@@ -3,7 +3,7 @@ import logging
 import platform
 from openai import OpenAI
 from datetime import datetime
-from cleanup_text import cleanup_text, clean_text, TNS_clean, clean_headline, suppress_dod_reference
+from cleanup_text import cleanup_text, clean_text, TNS_clean, clean_headline, suppress_dod_reference, strip_page_references
 
 # Raw parent acronyms (from AgencyCode) that TNS writes differently in headlines.
 # Agencies not listed here are used as-is. Extend as new agencies appear.
@@ -17,6 +17,10 @@ ACRONYM_OVERRIDES = {
 def build_original_text(grant, prompt):
     """orig_txt = a labeled dump of every scraped grant field, then the GPT prompt."""
     lines = ["=== ORIGINAL GRANT DATA (scraped from Grants.gov) ==="]
+    # Surface the announcement URL so editors have a one-click path to the source (QA 06/13).
+    opp_id = grant.get("OpportunityID", "")
+    if opp_id:
+        lines.append(f"Announcement URL: https://www.grants.gov/search-results-detail/{opp_id}")
     for key, value in grant.items():
         if isinstance(value, list):
             value = ", ".join(str(v) for v in value if v is not None)
@@ -65,6 +69,32 @@ def format_grant_date(date_str):
         return f"{date.month}/{date.day}/{str(date.year)[-2:]}"
     except Exception:
         return "to be determined"  # fallback for invalid dates
+
+# Last-resort deadline recovery (QA 06/13, doc 1864800): when the structured close-date
+# field is empty, the date may only exist in the announcement free text. Pull a date out
+# of that text, but only when it sits right after a closing cue ("due by Aug. 31, 2026")
+# so we don't grab a start date or some other unrelated date.
+_DATE_IN_TEXT = re.compile(
+    r"(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|"
+    r"aug(?:ust)?|sep(?:t)?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+"
+    r"(\d{1,2}),?\s+(\d{4})", re.IGNORECASE,
+)
+_CLOSE_CUE = re.compile(r"clos|deadline|due|submit|application", re.IGNORECASE)
+
+def extract_close_date_from_text(text):
+    """Return MMDDYYYY for a date within ~60 chars after a closing cue, else ''."""
+    if not text:
+        return ""
+    months = {  # abbrev prefix -> month number
+        "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
+        "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
+    }
+    for m in _DATE_IN_TEXT.finditer(text):
+        window = text[max(0, m.start() - 60):m.start()]
+        if _CLOSE_CUE.search(window):
+            mon = months[m.group(1)[:3].lower()]
+            return f"{mon:02d}{int(m.group(2)):02d}{m.group(3)}"
+    return ""
 
 # gets the parent govenrment agency to put into report
 def get_parent_agency_abbreviation(agency_code):
@@ -146,6 +176,10 @@ def callApiWithGrant(client, grant):
     # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is empty
     if is_forecasted and (not close_date or close_date == "None"):
         close_date = grant.get("EstimatedSynopsisCloseDate", "")
+
+    # Last resort: pull the deadline out of the announcement text (QA 06/13, doc 1864800).
+    if not close_date or close_date == "None":
+        close_date = extract_close_date_from_text(description)
 
     # Format amounts
     award_floor = millions(award_floor_val)
@@ -294,6 +328,7 @@ Guidelines:
 - Do not use the words “significant,” “forthcoming,” “extensive,” or “new”.
 - Do not include a dateline.
 - Do not mention deadlines
+- Do not refer the reader to a page, section, or attachment for information (never write phrases like "see page X," "on pages 2 to 3," or "of the announcement package"). State eligibility and other details directly; if a detail is only available as a page reference, omit it.
 """.strip()
 
     # build the orig_txt audit trail (raw scraped grant data + the exact prompt)
@@ -335,6 +370,9 @@ Guidelines:
         # cleaning text via TNS editors instructions
         headline = TNS_clean(headline)
         story = TNS_clean(story)
+
+        # drop any "see page X of the announcement package" sentence (QA 06/13)
+        story = strip_page_references(story)
 
         # enforce TNS headline-only conventions deterministically (no periods in
         # acronyms, no parentheses, no possessives, "State Dept.", ED not DOE, etc.)
