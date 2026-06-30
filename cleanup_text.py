@@ -391,10 +391,22 @@ def suppress_dod_reference(text, branch):
 # to GPT. Drop any sentence that cites a page number AND a document keyword -- requiring
 # both keeps ordinary prose untouched. Story body only -- never the headline.
 def strip_page_references(text):
-    """Drop any sentence that tells the reader to see a page of an external document."""
-    parts = re.split(r'(?<=[.!?])\s+', text)
-    kept = [s for s in parts if not (
-        re.search(r'\bpages?\s+\d+', s, re.IGNORECASE) and
-        re.search(r'\b(announcement|package|FOA|RFA|NOFO|RFP|document|attachment|solicitation|section)\b', s, re.IGNORECASE)
-    )]
-    return re.sub(r'\s{2,}', ' ', ' '.join(kept)).strip()
+    """Drop any sentence that tells the reader to see a page of an external document.
+
+    Operates paragraph-by-paragraph so newline paragraph breaks survive -- a single
+    text-wide split/join would flatten the whole story into one paragraph.
+    """
+    def clean_block(block):
+        # Within a single line, split on sentence boundaries (spaces only -- no newlines
+        # are left in a block) and drop sentences that cite a page of a document.
+        parts = re.split(r'(?<=[.!?])\s+', block)
+        kept = [s for s in parts if not (
+            re.search(r'\bpages?\s+\d+', s, re.IGNORECASE) and
+            re.search(r'\b(announcement|package|FOA|RFA|NOFO|RFP|document|attachment|solicitation|section)\b', s, re.IGNORECASE)
+        )]
+        return ' '.join(kept)
+
+    # Split on runs of newlines but KEEP them, so paragraph structure is preserved.
+    segments = re.split(r'(\n+)', text)
+    cleaned = [seg if seg.startswith('\n') else clean_block(seg) for seg in segments]
+    return ''.join(cleaned).strip()
