@@ -59,14 +59,16 @@ def get_body_date():
 
 # turns grant date into a TNS approved format
 def format_grant_date(date_str):
-    """Convert a date like '07222025' to '7/22/25'."""
+    """Convert a date like '07202026' to 'July 20, 2026'."""
     # Handle empty or None strings
     if not date_str or date_str == "None":
         return "to be determined"
 
     try:
         date = datetime.strptime(date_str, "%m%d%Y")
-        return f"{date.month}/{date.day}/{str(date.year)[-2:]}"
+        # No-leading-zero day, platform-specific like get_body_date: "July 20, 2026".
+        day_format = '%-d' if platform.system() != 'Windows' else '%#d'
+        return f"{date.strftime('%B')} {date.strftime(day_format)}, {date.year}"
     except Exception:
         return "to be determined"  # fallback for invalid dates
 
