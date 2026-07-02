@@ -6,12 +6,28 @@ import pprint
 import logging
 from datetime import datetime
 from email_utils import send_summary_email
+from cleanup_text import missing_approved_keyword
 from gpt import callApiWithGrant,  getKey, OpenAI
 from db_functions import insert_story, get_db_connection
 from grants import get_yesterday_zip_url, get_yesterdays_date, download_and_extract_zip, parse_yesterdays_grants, generate_filename, delete_file, get_applicants_tags, get_funding_category_tags, get_funding_type, is_sole_source
 
 # comment written to the story.comments field for sole-source grants
 SOLE_SOURCE_COMMENT = "BM: This grant is a sole-source grant."
+
+# comment flagging a headline whose action verb isn't one of the approved phrases
+# (see cleanup_text.missing_approved_keyword) so an editor can fix it by hand
+KEYWORD_ISSUE_COMMENT = "BM keyword issue"
+
+
+# assembles the story.comments field from every editor flag that applies to a grant
+def build_comments(grant, headline):
+    """Join all applicable editor-flag comments into the story.comments string."""
+    parts = []
+    if is_sole_source(grant):
+        parts.append(SOLE_SOURCE_COMMENT)
+    if headline and missing_approved_keyword(headline):
+        parts.append(KEYWORD_ISSUE_COMMENT)
+    return " ".join(parts)
 
 """
 Author: Bailey Malota
@@ -86,7 +102,7 @@ def main(argv):
             for grant in grants:
                 filename = generate_filename(grant)
                 headline, story, orig_txt = callApiWithGrant(client, grant)
-                comments = SOLE_SOURCE_COMMENT if is_sole_source(grant) else ""
+                comments = build_comments(grant, headline)
 
                 # if callApiWithGrant didnt return None, then write row
                 if headline and story:
@@ -108,7 +124,7 @@ def main(argv):
             applicants_tags = get_applicants_tags(grant)
             category_tags = get_funding_category_tags(grant)
             funding_tag = get_funding_type(grant)
-            comments = SOLE_SOURCE_COMMENT if is_sole_source(grant) else ""
+            comments = build_comments(grant, headline)
 
             # inserting story if valid input and non-duplicatge filename
             if headline and story:

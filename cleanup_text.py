@@ -371,6 +371,31 @@ def clean_headline(text, expected_acronym=None):
     return text
 
 
+# TNS rule (BM): a grant headline's action must use one of these exact approved
+# phrases. When GPT uses anything else, the load flags the story with a
+# "BM keyword issue" comment (see main.build_comments) so an editor can fix the
+# verb by hand. We FLAG rather than rewrite because the correct replacement
+# depends on the grant (proposals vs applications vs funding). Headline only.
+APPROVED_HEADLINE_KEYWORDS = (
+    "invites proposals",
+    "opens funding",
+    "accepts applications",
+    "seeks proposals",
+    "seeks applications",
+)
+
+
+def missing_approved_keyword(headline):
+    """True when the headline contains none of the approved action phrases.
+
+    Case-insensitive substring match, so "seeks proposals for grid research"
+    still counts as containing "seeks proposals". Runs after clean_headline,
+    so the text is already ASCII and normalized.
+    """
+    text = (headline or "").lower()
+    return not any(keyword in text for keyword in APPROVED_HEADLINE_KEYWORDS)
+
+
 # TNS rule (Myron): an Army/Navy/Air Force story must not reference the Department of
 # Defense. Replaces any lingering DOD reference with the branch label (e.g. "U.S. Army").
 # Called per-grant from gpt.py only for service-branch grants -- never defense-wide ones.
