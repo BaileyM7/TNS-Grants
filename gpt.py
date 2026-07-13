@@ -98,6 +98,44 @@ def extract_close_date_from_text(text):
             return f"{mon:02d}{int(m.group(2)):02d}{m.group(3)}"
     return ""
 
+# TNS rule (BM): a grant whose application window closes within a week is stale news by
+# the time the story runs, so it is dropped rather than loaded.
+MIN_DAYS_TO_DEADLINE = 7
+
+# resolves the application deadline: structured CloseDate, then the forecast's estimated
+# close date, then a last-resort scrape of the announcement free text.
+def resolve_close_date(grant):
+    """Return the grant's deadline as MMDDYYYY, or '' when no deadline can be found."""
+    close_date = grant.get("CloseDate", "")
+
+    # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is empty
+    if grant.get("IsForecasted", False) and (not close_date or close_date == "None"):
+        close_date = grant.get("EstimatedSynopsisCloseDate", "")
+
+    # Last resort: pull the deadline out of the announcement text (QA 06/13, doc 1864800).
+    if not close_date or close_date == "None":
+        close_date = extract_close_date_from_text(grant.get("Description"))
+
+    return close_date or ""
+
+# returns True if the grant's deadline is fewer than MIN_DAYS_TO_DEADLINE days away
+def deadline_too_soon(grant):
+    """True when the deadline is under a week out (or already past).
+
+    A grant with no resolvable deadline is kept: the story prints "to be determined"
+    rather than a bad date, and dropping it would lose legitimate open-ended grants.
+    """
+    close_date = resolve_close_date(grant)
+    if not close_date:
+        return False
+
+    try:
+        deadline = datetime.strptime(close_date, "%m%d%Y").date()
+    except ValueError:
+        return False  # unparseable date -> same fallback as a missing one
+
+    return (deadline - datetime.today().date()).days < MIN_DAYS_TO_DEADLINE
+
 # gets the parent govenrment agency to put into report
 def get_parent_agency_abbreviation(agency_code):
     """
@@ -173,15 +211,7 @@ def callApiWithGrant(client, grant):
     eligibility = grant.get("AdditionalInformationOnEligibility")
     description = grant.get("Description")
     is_forecasted = grant.get("IsForecasted", False)
-    close_date = grant.get("CloseDate", "")
-
-    # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is empty
-    if is_forecasted and (not close_date or close_date == "None"):
-        close_date = grant.get("EstimatedSynopsisCloseDate", "")
-
-    # Last resort: pull the deadline out of the announcement text (QA 06/13, doc 1864800).
-    if not close_date or close_date == "None":
-        close_date = extract_close_date_from_text(description)
+    close_date = resolve_close_date(grant)
 
     # Format amounts
     award_floor = millions(award_floor_val)
@@ -289,7 +319,15 @@ def callApiWithGrant(client, grant):
             f"You may also mention the agency '{agency}'. If '{acronym}' and '{agency}' refer to "
             f"the same entity, mention only '{agency}'.{ed_note}"
         )
-        first_paragraph_prompt = f"""
+        # TNS rule (06/16): NASA is the one agency that is never spelled out, so the
+        # "spell out the parent agency" instruction has to be suppressed for it.
+        if acronym == "NASA":
+            first_paragraph_prompt = f"""
+        - the parent agency as "NASA" -- never spell out "National Aeronautics and Space Administration"
+        - the exact agency name: {agency}
+        """
+        else:
+            first_paragraph_prompt = f"""
         - the fully spelled-out parent agency (based on the acronym {acronym})
         - the exact agency name: {agency}
         """
@@ -324,7 +362,7 @@ Do not use a rigid structure like "X agency issued the following grant." Instead
 Use the following details in the article:
 {details}
 Guidelines:
-- Spell out the parent agency from its acronym. If it begins with "Department", prepend "U.S." (e.g., "U.S. Department of Energy").
+- Spell out the parent agency from its acronym. If it begins with "Department", prepend "U.S." (e.g., "U.S. Department of Energy"). The one exception is NASA: always write "NASA" and never spell out "National Aeronautics and Space Administration", in the headline or the story.
 - Use the **exact agency name** "{agency}" when referring to the child agency. Do **not** substitute it with a different bureau or inferred entity.
 - Refer to dollar amounts in millions with a single decimal point if applicable (e.g., "$2.5 million").
 - Do not use the words “significant,” “forthcoming,” “extensive,” or “new”.

@@ -7,9 +7,9 @@ import logging
 from datetime import datetime
 from email_utils import send_summary_email
 from cleanup_text import missing_approved_keyword
-from gpt import callApiWithGrant,  getKey, OpenAI
+from gpt import callApiWithGrant,  getKey, OpenAI, deadline_too_soon, MIN_DAYS_TO_DEADLINE
 from db_functions import insert_story, get_db_connection
-from grants import get_yesterday_zip_url, get_yesterdays_date, download_and_extract_zip, parse_yesterdays_grants, generate_filename, delete_file, get_applicants_tags, get_funding_category_tags, get_funding_type, is_sole_source
+from grants import get_yesterday_zip_url, get_yesterdays_date, download_and_extract_zip, parse_yesterdays_grants, generate_filename, delete_file, get_applicants_tags, get_funding_category_tags, get_funding_type, is_sole_source, is_test_agency
 
 # comment written to the story.comments field for sole-source grants
 SOLE_SOURCE_COMMENT = "BM: This grant is a sole-source grant."
@@ -28,6 +28,33 @@ def build_comments(grant, headline):
     if headline and missing_approved_keyword(headline):
         parts.append(KEYWORD_ISSUE_COMMENT)
     return " ".join(parts)
+
+
+# drops grants that should never reach GPT or the story coder: agencies' test records,
+# and grants whose application window closes too soon to be worth running.
+def filter_grants(grants):
+    """Return (grants_to_load, dropped_count), logging why each drop happened."""
+    kept = []
+    dropped = 0
+
+    for grant in grants:
+        number = grant.get("OpportunityNumber", "")
+
+        # agencies push dummy records ("IV&V Test Agency") through the daily extract
+        if is_test_agency(grant):
+            logging.info(f"Skipping test-agency grant {number}: {grant.get('AgencyName')}")
+            dropped += 1
+            continue
+
+        # a deadline under a week out is stale news by the time the story runs
+        if deadline_too_soon(grant):
+            logging.info(f"Skipping grant {number}: deadline is under {MIN_DAYS_TO_DEADLINE} days away")
+            dropped += 1
+            continue
+
+        kept.append(grant)
+
+    return kept, dropped
 
 """
 Author: Bailey Malota
@@ -91,6 +118,11 @@ def main(argv):
 
     # delete the file after parsing it
     delete_file(file)
+
+    # drop test-agency records and grants closing too soon, before any GPT calls
+    grants, dropped = filter_grants(grants)
+    skipped += dropped
+    logging.info(f"{len(grants)} grants to load, {dropped} filtered out")
 
     # if test run, sent it to csv file to look at
     if test_run:

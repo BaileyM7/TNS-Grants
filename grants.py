@@ -268,3 +268,12 @@ def is_sole_source(grant):
         if _SOLE_SOURCE_RE.search(grant.get(field) or ""):
             return True
     return False
+
+# Agencies push dummy records through the daily extract under names like
+# "IV&V Test Agency" or "Test Agency 2". Word-boundary match so real agencies
+# with "test" inside a word (e.g. "Testing and Evaluation") are not dropped.
+_TEST_AGENCY_RE = re.compile(r"\btests?\b", re.IGNORECASE)
+
+# returns True if the grant belongs to a test agency and should not be loaded
+def is_test_agency(grant):
+    return bool(_TEST_AGENCY_RE.search(grant.get("AgencyName") or ""))

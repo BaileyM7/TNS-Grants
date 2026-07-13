@@ -275,6 +275,22 @@ def clean_text(text):
     text = text.strip().replace('\"', "").replace('Headline:', "").replace('headline:', "")
     return text
 
+# TNS rule (06/16): NASA is always "NASA", never spelled out. Matches the name with or
+# without a leading "the"/"U.S."/"United States" (so we never leave a stranded "U.S. NASA"),
+# keeps a possessive, and swallows a trailing "(NASA)" so GPT's
+# "...Space Administration (NASA)" collapses to "NASA", not "NASA (NASA)".
+_NASA_RE = re.compile(
+    r"\b(?:the\s+)?(?:U\.S\.\s+|United\s+States\s+)?"
+    r"National\s+Aeronautics\s+(?:and|&)\s+Space\s+Administration(?P<poss>'s)?"
+    r"(?:\s*\(\s*NASA\s*\))?",
+    re.IGNORECASE,
+)
+
+
+def _nasa_acronym(match):
+    return "NASA's" if match.group("poss") else "NASA"
+
+
 # this function goes through all of the added formatting edits by TNS editors
 # this are manually done becuase they are exce[tions to the gramatical rules set in place
 def TNS_clean(text):
@@ -282,9 +298,8 @@ def TNS_clean(text):
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
     text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
 
-    # TNS rule (06/16): NASA is always "NASA", never spelled out. Also swallow a
-    # trailing "(NASA)" so GPT's "...Administration (NASA)" -> "NASA", not "NASA (NASA)".
-    text = re.sub(r"National Aeronautics and Space Administration(?:\s*\(NASA\))?", "NASA", text)
+    # NASA is never spelled out (see _NASA_RE above).
+    text = _NASA_RE.sub(_nasa_acronym, text)
 
     # TNS rule (Myron): it's never "Department of the Army/Navy/Air Force" -- it's
     # "U.S. Army", "U.S. Navy", "U.S. Air Force". Applies to headline and body.
