@@ -173,6 +173,22 @@ def get_branch_office(agency_name):
     office = office.strip(" -–—:|")
     return "" if office.lower() in ("", "army", "navy", "air force") else office
 
+# Grants.gov often tacks an internal office code onto the child agency name
+# ("Administration for Children and Families - ACYF/CB") or names a headquarters
+# ("NASA Headquarters"). TNS wants the plain agency in the lede (QA 07/14), so drop
+# both before the name is ever shown to GPT.
+def normalize_child_agency_name(name):
+    """Strip a trailing '- OFFICECODE' suffix and a trailing 'Headquarters'."""
+    if not name:
+        return name
+    # Drop a trailing " - CODE" office suffix. Only an all-caps/code-like token is
+    # removed (e.g. "- ACYF/CB", "- OJP"); a descriptive tail like "- GOM Region"
+    # contains lowercase letters and is left intact.
+    name = re.sub(r"\s*[-–—]\s*[A-Z0-9][A-Z0-9&/.\-]*\s*$", "", name)
+    # "NASA Headquarters" -> "NASA": a headquarters is not a distinct child agency.
+    name = re.sub(r"\s+Headquarters\s*$", "", name, flags=re.IGNORECASE)
+    return name.strip()
+
 # calls GPT to summarize grant info
 def callApiWithGrant(client, grant):
     # converts dollar amount into TNS specified format
@@ -198,6 +214,10 @@ def callApiWithGrant(client, grant):
     # checking to see if agency is all caps (if so make only first letter capitalized)
     if agency.isupper():
         agency = agency.title()
+
+    # Drop office-code suffixes and "Headquarters" so the lede names the plain agency
+    # ("Administration for Children and Families", "NASA") -- QA 07/14.
+    agency = normalize_child_agency_name(agency)
 
     # Required fields — return None if missing
     if not all([agency, opportunity_id, opportunity_title, OpportunityNumber, AgencyCode]):
@@ -363,8 +383,11 @@ Use the following details in the article:
 {details}
 Guidelines:
 - Spell out the parent agency from its acronym. If it begins with "Department", prepend "U.S." (e.g., "U.S. Department of Energy"). The one exception is NASA: always write "NASA" and never spell out "National Aeronautics and Space Administration", in the headline or the story.
-- Use the **exact agency name** "{agency}" when referring to the child agency. Do **not** substitute it with a different bureau or inferred entity.
+- Use the **exact agency name** "{agency}" when referring to the child agency. Do **not** substitute it with a different bureau or inferred entity, and do **not** append a parenthetical acronym or office code after it (write "Administration for Children and Families," never "Administration for Children and Families (ACF)" or "... - ACYF/CB").
 - Refer to dollar amounts in millions with a single decimal point if applicable (e.g., "$2.5 million").
+- If the grant title or any phrase in the details is written in ALL CAPITAL LETTERS, rewrite it in standard title case in both the headline and the story (e.g., "PROGRAM FOR INVESTMENT IN MICROENTREPRENEURS" becomes "Program for Investment in Microentrepreneurs"). Keep genuine acronyms and abbreviations capitalized (e.g., NASA, PRIME, FY, U.S.).
+- Do not reference or name any presidential administration or attribute the program to one (never write "the Biden Administration," "the Trump Administration," or "the administration's commitment to ..."). Report only the agency and the opportunity.
+- Do not editorialize or end with a call to action. Never encourage, invite, or urge anyone to apply, prepare, or submit; never write that applicants are "encouraged to" do something, that an agency "looks forward to receiving" proposals, or that readers should "join" the agency's mission. Simply report the facts of the opportunity and stop.
 - Do not use the words “significant,” “forthcoming,” “extensive,” or “new”.
 - Do not include a dateline.
 - Do not mention deadlines
@@ -396,7 +419,10 @@ Guidelines:
         today_date = get_body_date()
         story = f"WASHINGTON, {today_date} -- {body_raw.strip()}"
         close_date = format_grant_date(close_date)
-        deadline_label = "estimated deadline" if is_forecasted else "deadline"
+        # A concrete date is a real deadline even for a forecast; only call it
+        # "estimated" when the forecast gives no specific date (QA doc 1869503).
+        has_specific_date = close_date != "to be determined"
+        deadline_label = "deadline" if (has_specific_date or not is_forecasted) else "estimated deadline"
         story += f"\n\nThe {deadline_label} for application is {close_date}. The funding opportunity number is {OpportunityNumber}."
         story += f"\n\n* * *\n\nView grant announcement here: https://www.grants.gov/search-results-detail/{opportunity_id}"
 
