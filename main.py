@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from email_utils import send_summary_email
 from cleanup_text import missing_approved_keyword
-from gpt import callApiWithGrant,  getKey, OpenAI, deadline_too_soon, MIN_DAYS_TO_DEADLINE
+from gpt import callApiWithGrant,  getKey, OpenAI, deadline_too_soon, missing_usable_deadline, MIN_DAYS_TO_DEADLINE
 from db_functions import insert_story, get_db_connection
 from grants import get_yesterday_zip_url, get_yesterdays_date, download_and_extract_zip, parse_yesterdays_grants, generate_filename, delete_file, get_applicants_tags, get_funding_category_tags, get_funding_type, is_sole_source, is_test_agency
 
@@ -43,6 +43,13 @@ def filter_grants(grants):
         # agencies push dummy records ("IV&V Test Agency") through the daily extract
         if is_test_agency(grant):
             logging.info(f"Skipping test-agency grant {number}: {grant.get('AgencyName')}")
+            dropped += 1
+            continue
+
+        # placeholder (Jan 1, 2099) / "undefined" / absent close date: editors
+        # cannot run a doc without a real deadline (QA 07/30, doc 1873697)
+        if missing_usable_deadline(grant):
+            logging.info(f"Skipping grant {number}: no usable close date (placeholder or missing)")
             dropped += 1
             continue
 

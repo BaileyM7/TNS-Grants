@@ -102,28 +102,50 @@ def extract_close_date_from_text(text):
 # the time the story runs, so it is dropped rather than loaded.
 MIN_DAYS_TO_DEADLINE = 7
 
+# Grants.gov signals "no real deadline yet" with the placeholder date Jan 1, 2099
+# (raw "01012099") or junk field values like "undefined". Editors (QA 07/30, doc
+# 1873697): "Docs that say this closing date cannot be used." Any year at or past
+# the placeholder year is treated as fake.
+PLACEHOLDER_CLOSE_YEAR = 2099
+_JUNK_CLOSE_VALUES = {"", "none", "null", "undefined", "n/a", "tbd"}
+
+def _normalize_close_value(value):
+    """Return '' unless value is a real, parseable MMDDYYYY date before 2099."""
+    value = (value or "").strip()
+    if value.lower() in _JUNK_CLOSE_VALUES:
+        return ""
+    try:
+        parsed = datetime.strptime(value, "%m%d%Y")
+    except ValueError:
+        return ""  # unparseable garbage is as unusable as a missing date
+    return "" if parsed.year >= PLACEHOLDER_CLOSE_YEAR else value
+
 # resolves the application deadline: structured CloseDate, then the forecast's estimated
 # close date, then a last-resort scrape of the announcement free text.
 def resolve_close_date(grant):
-    """Return the grant's deadline as MMDDYYYY, or '' when no deadline can be found."""
-    close_date = grant.get("CloseDate", "")
+    """Return the grant's deadline as MMDDYYYY, or '' when no usable deadline exists.
 
-    # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is empty
-    if grant.get("IsForecasted", False) and (not close_date or close_date == "None"):
-        close_date = grant.get("EstimatedSynopsisCloseDate", "")
+    Placeholder (2099) and junk ("undefined") values are treated as missing, so the
+    forecast and free-text fallbacks still get a chance to recover a real date.
+    """
+    close_date = _normalize_close_value(grant.get("CloseDate"))
+
+    # For forecasted grants, use EstimatedSynopsisCloseDate if CloseDate is unusable
+    if grant.get("IsForecasted", False) and not close_date:
+        close_date = _normalize_close_value(grant.get("EstimatedSynopsisCloseDate"))
 
     # Last resort: pull the deadline out of the announcement text (QA 06/13, doc 1864800).
-    if not close_date or close_date == "None":
-        close_date = extract_close_date_from_text(grant.get("Description"))
+    if not close_date:
+        close_date = _normalize_close_value(extract_close_date_from_text(grant.get("Description")))
 
-    return close_date or ""
+    return close_date
 
 # returns True if the grant's deadline is fewer than MIN_DAYS_TO_DEADLINE days away
 def deadline_too_soon(grant):
     """True when the deadline is under a week out (or already past).
 
-    A grant with no resolvable deadline is kept: the story prints "to be determined"
-    rather than a bad date, and dropping it would lose legitimate open-ended grants.
+    A grant with no resolvable deadline returns False here -- the keep/drop decision
+    for missing/placeholder deadlines lives in missing_usable_deadline (filter_grants).
     """
     close_date = resolve_close_date(grant)
     if not close_date:
@@ -135,6 +157,13 @@ def deadline_too_soon(grant):
         return False  # unparseable date -> same fallback as a missing one
 
     return (deadline - datetime.today().date()).days < MIN_DAYS_TO_DEADLINE
+
+# TNS rule (editors, QA 07/30, doc 1873697): a doc without a real application deadline
+# cannot be used -- the Grants.gov placeholder (Jan 1, 2099) and junk values
+# ("undefined") don't count, and neither does a genuinely absent close date.
+def missing_usable_deadline(grant):
+    """True when no genuine deadline resolves from any source."""
+    return not resolve_close_date(grant)
 
 # gets the parent govenrment agency to put into report
 def get_parent_agency_abbreviation(agency_code):
@@ -188,6 +217,18 @@ def normalize_child_agency_name(name):
     # "NASA Headquarters" -> "NASA": a headquarters is not a distinct child agency.
     name = re.sub(r"\s+Headquarters\s*$", "", name, flags=re.IGNORECASE)
     return name.strip()
+
+# The XML sometimes embeds the parent acronym in AgencyName, joined by a space or a
+# dash ("DOC National Oceanic...", "DOT - Federal Transit Administration"). Strip the
+# acronym AND the joining dash: leaving the dash behind produced "through its
+# - Federal Transit Administration" in the lede (QA 07/30, doc 1873692).
+def strip_parent_acronym_prefix(agency, raw_acronym):
+    """'DOT - Federal Transit Administration' + 'DOT' -> 'Federal Transit Administration'."""
+    if not agency or not raw_acronym:
+        return agency
+    stripped = re.sub(rf"^{re.escape(raw_acronym)}[ \t\-–—]+", "", agency)
+    # Never strip down to nothing (e.g. an AgencyName that is just the acronym).
+    return stripped if stripped else agency
 
 # calls GPT to summarize grant info
 def callApiWithGrant(client, grant):
@@ -249,10 +290,9 @@ def callApiWithGrant(client, grant):
     # Get acronym from agency code
     raw_acronym = get_parent_agency_abbreviation(AgencyCode)
 
-    # Strip redundant parent-acronym prefix when XML embeds it in AgencyName
-    # (e.g. "DOC National Oceanic..." -> "National Oceanic...")
-    if raw_acronym and agency.startswith(f"{raw_acronym} "):
-        agency = agency[len(raw_acronym) + 1:]
+    # Strip a redundant parent-acronym prefix, dash-joined or not
+    # (e.g. "DOT - Federal Transit Administration" -> "Federal Transit Administration")
+    agency = strip_parent_acronym_prefix(agency, raw_acronym)
 
     # State Department (and its missions/bureaus): headline shows only the parent "State Dept."
     is_state_dept = raw_acronym == "DOS"
@@ -371,6 +411,7 @@ The headline should:
 - Not contain parentheses
 - Not use possessive apostrophes on agency names (write "USDA Rural Utilities Service," not "USDA's Rural Utilities Service")
 - Write acronyms without periods (write "DOE," not "D.O.E.")
+- Always abbreviate fiscal years as "FY" (write "FY 2026," never "Fiscal Year 2026" or "fiscal year 2026")
 
 In the first paragraph, naturally introduce the grant by identifying:
 {first_paragraph_prompt}

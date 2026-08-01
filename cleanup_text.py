@@ -296,7 +296,6 @@ def _nasa_acronym(match):
 def TNS_clean(text):
     text = text.replace("Department of Defense USACE Portland District", "U.S. Army Corps of Engineers Portland District")
     text = text.replace("NOAA", "National Oceanic and Atmospheric Administration")
-    text = text.replace("DOT - Federal Railroad Administration", "Federal Railroad Administration")
 
     # NASA is never spelled out (see _NASA_RE above).
     text = _NASA_RE.sub(_nasa_acronym, text)
@@ -381,6 +380,10 @@ def clean_headline(text, expected_acronym=None):
         _drop_aux, text, flags=re.IGNORECASE,
     )
 
+    # Fiscal years are always "FY" in heds (QA 07/30, doc 1873704):
+    # "Fiscal Year 2026" -> "FY 2026". Headline only -- body copy keeps "Fiscal Year".
+    text = re.sub(r'\bfiscal\s+years?\b', 'FY', text, flags=re.IGNORECASE)
+
     # Collapse any double spaces left by the removals above.
     text = re.sub(r'\s{2,}', ' ', text).strip()
     return text
@@ -420,8 +423,11 @@ def suppress_dod_reference(text, branch):
     text = re.sub(r"\bDoD\b", branch, text)
     text = re.sub(r"\bDOD\b", branch, text)
     # Collapse a duplicate branch the swap may create ("U.S. Army Army" -> "U.S. Army").
-    text = re.sub(r"\b(Army|Navy|Air Force)\s+\1\b", r"\1", text)
-    text = re.sub(r"\s{2,}", " ", text).strip()
+    # Spaces/tabs only: \s also matches "\n\n", and collapsing those flattened every
+    # DOD-branch story into one paragraph (QA 07/30, docs 1873694/1873702/1873703 --
+    # same bug class as the strip_page_references hotfix).
+    text = re.sub(r"\b(Army|Navy|Air Force)[ \t]+\1\b", r"\1", text)
+    text = re.sub(r"[ \t]{2,}", " ", text).strip()
     return text
 
 
